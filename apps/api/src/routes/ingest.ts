@@ -208,7 +208,7 @@ export async function getLogsForProject(projectId: string) {
   }));
 }
 
-// Risk history storage (will be replaced with SmartSQL)
+// Risk history storage (tries SmartSQL, falls back to memory)
 const riskHistory: Map<string, Array<{
   projectId: string;
   score: number;
@@ -217,7 +217,26 @@ const riskHistory: Map<string, Array<{
   factors: any;
 }>> = new Map();
 
-export function storeRiskScore(projectId: string, riskScore: any) {
+export async function storeRiskScore(projectId: string, riskScore: any) {
+  try {
+    // Try SmartSQL first
+    await smartSQL.execute(
+      'INSERT INTO risk_history (id, project_id, score, labels, factors, timestamp) VALUES (?, ?, ?, ?, ?, ?)',
+      [
+        `risk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        projectId,
+        riskScore.score,
+        JSON.stringify(riskScore.labels),
+        JSON.stringify(riskScore.factors || {}),
+        riskScore.timestamp,
+      ]
+    );
+    return; // Success, don't use fallback
+  } catch (error) {
+    console.warn('SmartSQL insert failed, using fallback:', error);
+  }
+  
+  // Fallback to in-memory storage
   const history = riskHistory.get(projectId) || [];
   history.push({
     projectId,
@@ -233,7 +252,26 @@ export function storeRiskScore(projectId: string, riskScore: any) {
   riskHistory.set(projectId, history);
 }
 
-export function getRiskHistory(projectId: string, limit = 50) {
+export async function getRiskHistory(projectId: string, limit = 50) {
+  try {
+    // Try SmartSQL first
+    const rows = await smartSQL.query(
+      'SELECT score, labels, timestamp FROM risk_history WHERE project_id = ? ORDER BY timestamp DESC LIMIT ?',
+      [projectId, limit]
+    );
+    
+    if (rows.length > 0) {
+      return rows.map(row => ({
+        score: row.score,
+        labels: typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels,
+        timestamp: row.timestamp,
+      }));
+    }
+  } catch (error) {
+    console.warn('SmartSQL query failed, using fallback:', error);
+  }
+  
+  // Fallback to in-memory storage
   const history = riskHistory.get(projectId) || [];
   return history.slice(-limit).reverse(); // Most recent first
 }
