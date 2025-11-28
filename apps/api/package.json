@@ -8,9 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js"
   },
-  "dependencies": {
-    "@raindrop/mcp-server": "^0.1.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^20",
     "typescript": "^5",
