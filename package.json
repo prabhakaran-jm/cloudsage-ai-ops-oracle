@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "install:all": "npm install && cd apps/web && npm install && cd ../api && npm install",
     "dev:web": "cd apps/web && npm run dev",
     "dev:api": "cd apps/api && npm run dev",
     "dev:vultr-worker": "cd services/vultr-worker && npm run dev",
