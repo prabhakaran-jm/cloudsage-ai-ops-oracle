@@ -12,6 +12,7 @@ import {
   handleUpdateProject,
   handleDeleteProject,
 } from './routes/projects';
+import { handleIngestLogs, handleGetLogs } from './routes/ingest';
 
 const PORT = process.env.PORT || 3001;
 
@@ -28,6 +29,11 @@ router.add('GET', /^\/api\/projects\/[^/]+$/, handleGetProject);
 router.add('POST', '/api/projects', handleCreateProject);
 router.add('PUT', /^\/api\/projects\/[^/]+$/, handleUpdateProject);
 router.add('DELETE', /^\/api\/projects\/[^/]+$/, handleDeleteProject);
+
+// Log ingestion routes
+router.add('POST', '/api/ingest', handleIngestLogs);
+router.add('POST', /^\/api\/ingest\/[^/]+$/, handleIngestLogs);
+router.add('GET', /^\/api\/ingest\/[^/]+$/, handleGetLogs);
 
 // Hello endpoint (for testing)
 router.add('GET', '/api/hello', (req, res) => {

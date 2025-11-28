@@ -86,7 +86,7 @@ export const apiClient = {
   },
 
   async getProject(id: string) {
-    return request<{ project: Project }>(`/projects/${id}`);
+    return request<{ project: Project; riskScore?: RiskScore }>(`/projects/${id}`);
   },
 
   async createProject(name: string, description?: string) {
@@ -108,7 +108,43 @@ export const apiClient = {
       method: 'DELETE',
     });
   },
+
+  // Log ingestion
+  async ingestLogs(projectId: string, logs: string | string[], metadata?: any) {
+    return request<{ message: string; count: number; projectId: string; timestamp: string }>(
+      `/ingest/${projectId}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ projectId, logs, metadata }),
+      }
+    );
+  },
+
+  async getLogs(projectId: string, limit = 50, offset = 0) {
+    return request<{ logs: LogEntry[]; total: number; limit: number; offset: number }>(
+      `/ingest/${projectId}?limit=${limit}&offset=${offset}`
+    );
+  },
 };
+
+export interface LogEntry {
+  id: string;
+  projectId: string;
+  content: string;
+  timestamp: string;
+  metadata?: any;
+}
+
+export interface RiskScore {
+  score: number;
+  labels: string[];
+  timestamp: string;
+  factors: {
+    errorRate?: number;
+    logVolume?: number;
+    latency?: number;
+  };
+}
 
 export interface Project {
   id: string;

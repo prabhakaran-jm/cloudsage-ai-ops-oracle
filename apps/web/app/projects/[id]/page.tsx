@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { apiClient, Project } from '@/lib/apiClient';
+import { apiClient, Project, RiskScore } from '@/lib/apiClient';
 import Link from 'next/link';
+import LogIngest from '@/components/LogIngest';
+import RiskPanel from '@/components/RiskPanel';
 
 export default function ProjectDetailPage() {
   const router = useRouter();
@@ -11,6 +13,7 @@ export default function ProjectDetailPage() {
   const projectId = params.id as string;
 
   const [project, setProject] = useState<Project | null>(null);
+  const [riskScore, setRiskScore] = useState<RiskScore | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
@@ -21,15 +24,19 @@ export default function ProjectDetailPage() {
     if (projectId) {
       loadProject();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   const loadProject = async () => {
     try {
       setLoading(true);
-      const data = await apiClient.getProject(projectId);
+      const data = await apiClient.getProject(projectId) as { project: Project; riskScore?: RiskScore };
       setProject(data.project);
       setName(data.project.name);
       setDescription(data.project.description || '');
+      if (data.riskScore) {
+        setRiskScore(data.riskScore);
+      }
     } catch (err: any) {
       if (err.message.includes('Unauthorized')) {
         router.push('/login');
@@ -180,14 +187,24 @@ export default function ProjectDetailPage() {
                 </div>
               </div>
 
-              <div className="mt-8 pt-8 border-t border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Project Details</h3>
-                <p className="text-gray-600">
-                  Log ingestion and risk scoring features will be added in the next phases.
-                </p>
-              </div>
             </div>
           )}
+
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <RiskPanel riskScore={riskScore} loading={loading} />
+            </div>
+            <div>
+              <LogIngest projectId={projectId} onIngested={loadProject} />
+            </div>
+          </div>
+
+          <div className="mt-8 pt-8 border-t border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Logs</h3>
+            <p className="text-gray-600">
+              Log history will be displayed here. Ingest logs to see risk analysis.
+            </p>
+          </div>
         </div>
       </main>
     </div>

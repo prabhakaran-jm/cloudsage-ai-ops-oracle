@@ -2,6 +2,7 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { parseBody } from '../utils/parseBody';
 import { sendSuccess, sendError } from '../utils/response';
+import { getProjectRiskScore } from '../services/riskLogic';
 
 // Simple in-memory project store (will be replaced with SmartSQL later)
 const projects: Map<string, {
@@ -85,7 +86,15 @@ export async function handleGetProject(req: IncomingMessage, res: ServerResponse
     return;
   }
 
-  sendSuccess(res, { project });
+  // Get project logs and calculate risk score
+  const { getLogsForProject } = await import('../routes/ingest');
+  const projectLogs = getLogsForProject(projectId);
+  const riskScore = getProjectRiskScore(projectLogs);
+
+  sendSuccess(res, { 
+    project,
+    riskScore,
+  });
 }
 
 export async function handleCreateProject(req: IncomingMessage, res: ServerResponse) {
