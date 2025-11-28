@@ -4,7 +4,7 @@ import { parseBody } from '../utils/parseBody';
 import { sendSuccess, sendError } from '../utils/response';
 import { calculateRiskScoreFromVultr } from '../services/vultrClient';
 import { getProjectRiskScore } from '../services/riskLogic';
-import { smartBuckets } from '../services/raindropSmart';
+import { smartBuckets, smartSQL } from '../services/raindropSmart';
 
 // Fallback in-memory log store (used if SmartBuckets unavailable)
 const logs: Map<string, Array<{
