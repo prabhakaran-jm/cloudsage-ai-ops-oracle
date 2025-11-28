@@ -73,4 +73,6 @@ server.listen(PORT, () => {
   console.log(`   Try: http://localhost:${PORT}/api/hello`);
   console.log(`   Auth: POST /api/auth/register, POST /api/auth/login`);
   console.log(`   Projects: GET /api/projects, POST /api/projects`);
+  console.log(`   Ingest: POST /api/ingest/:projectId`);
+  console.log(`   Vultr Worker: ${process.env.VULTR_WORKER_URL || 'http://localhost:8080'}`);
 });

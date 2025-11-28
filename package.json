@@ -7,6 +7,7 @@
     "dev:web": "cd apps/web && npm run dev",
     "dev:api": "cd apps/api && npm run dev",
     "dev:vultr-worker": "cd services/vultr-worker && npm run dev",
+    "build:vultr-worker": "cd services/vultr-worker && npm run build",
     "lint": "echo \"add lint scripts later\"",
     "test": "echo \"add test scripts later\""
   },

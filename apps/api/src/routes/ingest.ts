@@ -2,6 +2,8 @@
 import { IncomingMessage, ServerResponse } from 'http';
 import { parseBody } from '../utils/parseBody';
 import { sendSuccess, sendError } from '../utils/response';
+import { calculateRiskScoreFromVultr } from '../services/vultrClient';
+import { getProjectRiskScore } from '../services/riskLogic';
 
 // Simple in-memory log store (will be replaced with SmartBuckets later)
 const logs: Map<string, Array<{
@@ -80,6 +82,32 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
     });
 
     logs.set(projectId, projectLogs);
+
+    // Calculate and store risk score after ingestion
+    try {
+      const projectLogsForScoring = projectLogs.map(log => ({
+        content: log.content,
+        timestamp: log.timestamp,
+        metadata: log.metadata,
+      }));
+
+      let riskScore;
+      try {
+        riskScore = await calculateRiskScoreFromVultr({
+          projectId,
+          logs: projectLogsForScoring,
+        });
+      } catch (error) {
+        console.warn('Vultr worker unavailable, using local calculation:', error);
+        riskScore = getProjectRiskScore(projectLogsForScoring);
+      }
+
+      // Store risk score in history (will be replaced with SmartSQL)
+      storeRiskScore(projectId, riskScore);
+    } catch (error) {
+      console.error('Error calculating risk score:', error);
+      // Don't fail the ingestion if risk calculation fails
+    }
 
     sendSuccess(res, {
       message: `Ingested ${storedLogs.length} log entries`,

@@ -3,6 +3,7 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { parseBody } from '../utils/parseBody';
 import { sendSuccess, sendError } from '../utils/response';
 import { getProjectRiskScore } from '../services/riskLogic';
+import { calculateRiskScoreFromVultr } from '../services/vultrClient';
 
 // Simple in-memory project store (will be replaced with SmartSQL later)
 const projects: Map<string, {
@@ -89,7 +90,19 @@ export async function handleGetProject(req: IncomingMessage, res: ServerResponse
   // Get project logs and calculate risk score
   const { getLogsForProject } = await import('../routes/ingest');
   const projectLogs = getLogsForProject(projectId);
-  const riskScore = getProjectRiskScore(projectLogs);
+  
+  // Try Vultr worker first, fallback to local calculation
+  let riskScore;
+  try {
+    riskScore = await calculateRiskScoreFromVultr({
+      projectId,
+      logs: projectLogs,
+    });
+  } catch (error) {
+    console.warn('Vultr worker unavailable, using local calculation:', error);
+    // Fallback to local risk scoring
+    riskScore = getProjectRiskScore(projectLogs);
+  }
 
   sendSuccess(res, { 
     project,

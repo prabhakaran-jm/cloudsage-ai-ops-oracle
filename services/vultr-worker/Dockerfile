@@ -1,11 +1,26 @@
-# Dockerfile for Vultr worker service
-# FROM node:20-alpine
-# or FROM python:3.11-slim if using Python
+FROM node:20-alpine
 
-# WORKDIR /app
-# COPY package*.json ./
-# RUN npm install
+WORKDIR /app
 
-# COPY . .
-# CMD ["npm", "start"]
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
 
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY src ./src
+
+# Build TypeScript
+RUN npm run build
+
+# Expose port
+EXPOSE 8080
+
+# Set environment variables
+ENV PORT=8080
+ENV NODE_ENV=production
+
+# Start the server
+CMD ["npm", "start"]
