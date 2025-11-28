@@ -126,10 +126,9 @@ npm run dev:vultr-worker
 
 ## Documentation
 
-- **[BUILD_PLAN.md](docs/BUILD_PLAN.md)** - Detailed MVP build plan with 7 phases
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and component design
-- **[SRS.md](docs/SRS.md)** - Software requirements specification
-- **[DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)** - Demo walkthrough script
+- **[RAINDROP_INTEGRATION.md](docs/RAINDROP_INTEGRATION.md)** - Guide for integrating Raindrop SmartComponents
+
 
 ---
 
