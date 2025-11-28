@@ -13,6 +13,7 @@ import {
   handleDeleteProject,
 } from './routes/projects';
 import { handleIngestLogs, handleGetLogs } from './routes/ingest';
+import { handleGetForecast, handleGetForecastHistory, handleGetRiskHistory } from './routes/forecast';
 
 const PORT = process.env.PORT || 3001;
 
@@ -34,6 +35,11 @@ router.add('DELETE', /^\/api\/projects\/[^/]+$/, handleDeleteProject);
 router.add('POST', '/api/ingest', handleIngestLogs);
 router.add('POST', /^\/api\/ingest\/[^/]+$/, handleIngestLogs);
 router.add('GET', /^\/api\/ingest\/[^/]+$/, handleGetLogs);
+
+// Forecast routes
+router.add('GET', /^\/api\/forecast\/[^/]+$/, handleGetForecast);
+router.add('GET', /^\/api\/forecast\/[^/]+\/history$/, handleGetForecastHistory);
+router.add('GET', /^\/api\/forecast\/[^/]+\/risk-history$/, handleGetRiskHistory);
 
 // Hello endpoint (for testing)
 router.add('GET', '/api/hello', (req, res) => {

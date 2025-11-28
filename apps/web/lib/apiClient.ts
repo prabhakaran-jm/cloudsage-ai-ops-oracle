@@ -125,7 +125,42 @@ export const apiClient = {
       `/ingest/${projectId}?limit=${limit}&offset=${offset}`
     );
   },
+
+  // Forecasts
+  async getForecast(projectId: string, date?: string) {
+    const url = date 
+      ? `/forecast/${projectId}?date=${date}`
+      : `/forecast/${projectId}`;
+    return request<{ forecast: Forecast }>(url);
+  },
+
+  async getForecastHistory(projectId: string) {
+    return request<{ forecasts: Forecast[] }>(`/forecast/${projectId}/history`);
+  },
+
+  async getRiskHistory(projectId: string, limit = 30) {
+    return request<{ history: RiskHistoryEntry[] }>(
+      `/forecast/${projectId}/risk-history?limit=${limit}`
+    );
+  },
 };
+
+export interface Forecast {
+  id: string;
+  projectId: string;
+  date: string;
+  forecastText: string;
+  actions: string[];
+  riskScore: number;
+  confidence: number;
+  generatedAt: string;
+}
+
+export interface RiskHistoryEntry {
+  score: number;
+  timestamp: string;
+  labels: string[];
+}
 
 export interface LogEntry {
   id: string;
