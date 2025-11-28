@@ -163,3 +163,33 @@ export function getLogsForProject(projectId: string) {
     metadata: log.metadata,
   }));
 }
+
+// Risk history storage (will be replaced with SmartSQL)
+const riskHistory: Map<string, Array<{
+  projectId: string;
+  score: number;
+  labels: string[];
+  timestamp: string;
+  factors: any;
+}>> = new Map();
+
+export function storeRiskScore(projectId: string, riskScore: any) {
+  const history = riskHistory.get(projectId) || [];
+  history.push({
+    projectId,
+    score: riskScore.score,
+    labels: riskScore.labels,
+    timestamp: riskScore.timestamp,
+    factors: riskScore.factors,
+  });
+  // Keep only last 100 entries per project
+  if (history.length > 100) {
+    history.shift();
+  }
+  riskHistory.set(projectId, history);
+}
+
+export function getRiskHistory(projectId: string, limit = 50) {
+  const history = riskHistory.get(projectId) || [];
+  return history.slice(-limit).reverse(); // Most recent first
+}
