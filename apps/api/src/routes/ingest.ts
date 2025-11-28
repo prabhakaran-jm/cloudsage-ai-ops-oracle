@@ -4,8 +4,9 @@ import { parseBody } from '../utils/parseBody';
 import { sendSuccess, sendError } from '../utils/response';
 import { calculateRiskScoreFromVultr } from '../services/vultrClient';
 import { getProjectRiskScore } from '../services/riskLogic';
+import { smartBuckets } from '../services/raindropSmart';
 
-// Simple in-memory log store (will be replaced with SmartBuckets later)
+// Fallback in-memory log store (used if SmartBuckets unavailable)
 const logs: Map<string, Array<{
   id: string;
   projectId: string;
@@ -15,6 +16,48 @@ const logs: Map<string, Array<{
 }>> = new Map();
 
 let nextLogId = 1;
+
+// Helper to store logs (tries SmartBuckets first, falls back to memory)
+async function storeLogs(projectId: string, logEntries: any[]): Promise<void> {
+  // Try SmartBuckets first
+  const bucket = 'logs';
+  for (const entry of logEntries) {
+    const key = `${projectId}/${entry.timestamp}/${entry.id}`;
+    const stored = await smartBuckets.put(bucket, key, entry);
+    
+    if (!stored) {
+      // Fallback to in-memory storage
+      const projectLogs = logs.get(projectId) || [];
+      projectLogs.push(entry);
+      logs.set(projectId, projectLogs);
+    }
+  }
+}
+
+// Helper to retrieve logs (tries SmartBuckets first, falls back to memory)
+async function getLogs(projectId: string): Promise<any[]> {
+  // Try SmartBuckets first
+  const bucket = 'logs';
+  const prefix = `${projectId}/`;
+  const keys = await smartBuckets.list(bucket, prefix);
+  
+  if (keys.length > 0) {
+    // Retrieve from SmartBuckets
+    const logEntries = [];
+    for (const key of keys.slice(-100)) { // Last 100 logs
+      const entry = await smartBuckets.get(bucket, key);
+      if (entry) {
+        logEntries.push(entry);
+      }
+    }
+    return logEntries.sort((a, b) => 
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }
+  
+  // Fallback to in-memory storage
+  return logs.get(projectId) || [];
+}
 
 // Extract user ID from token
 function getUserIdFromToken(req: IncomingMessage): string | null {
@@ -65,23 +108,24 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
       : logContent.split('\n').filter(line => line.trim());
 
     const timestamp = new Date().toISOString();
-    const projectLogs = logs.get(projectId) || [];
 
     // Store each log entry
     const storedLogs = logEntries.map((entry, index) => {
-      const logId = `log_${nextLogId++}`;
-      const logEntry = {
+      const logId = `log_${Date.now()}_${index}`;
+      return {
         id: logId,
         projectId,
         content: typeof entry === 'string' ? entry : JSON.stringify(entry),
         timestamp,
         metadata: metadata || {},
       };
-      projectLogs.push(logEntry);
-      return logEntry;
     });
 
-    logs.set(projectId, projectLogs);
+    // Store logs (tries SmartBuckets, falls back to memory)
+    await storeLogs(projectId, storedLogs);
+
+    // Get all logs for risk scoring
+    const projectLogs = await getLogs(projectId);
 
     // Calculate and store risk score after ingestion
     try {
@@ -135,7 +179,8 @@ export async function handleGetLogs(req: IncomingMessage, res: ServerResponse) {
     return;
   }
 
-  const projectLogs = logs.get(projectId) || [];
+  // Get logs (tries SmartBuckets, falls back to memory)
+  const projectLogs = await getLogs(projectId);
   
   // Get query params for pagination
   const urlObj = new URL(req.url || '', 'http://localhost');
@@ -143,8 +188,7 @@ export async function handleGetLogs(req: IncomingMessage, res: ServerResponse) {
   const offset = parseInt(urlObj.searchParams.get('offset') || '0');
 
   const paginatedLogs = projectLogs
-    .slice(offset, offset + limit)
-    .reverse(); // Most recent first
+    .slice(offset, offset + limit);
 
   sendSuccess(res, {
     logs: paginatedLogs,
@@ -155,8 +199,8 @@ export async function handleGetLogs(req: IncomingMessage, res: ServerResponse) {
 }
 
 // Export helper function to get logs for a project (for use in other modules)
-export function getLogsForProject(projectId: string) {
-  const projectLogs = logs.get(projectId) || [];
+export async function getLogsForProject(projectId: string) {
+  const projectLogs = await getLogs(projectId);
   return projectLogs.map(log => ({
     content: log.content,
     timestamp: log.timestamp,

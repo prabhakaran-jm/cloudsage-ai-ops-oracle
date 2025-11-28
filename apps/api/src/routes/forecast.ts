@@ -3,9 +3,36 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { sendSuccess, sendError } from '../utils/response';
 import { generateForecast, Forecast } from '../services/forecastService';
 import { getRiskHistory } from './ingest';
+import { smartBuckets, smartInference } from '../services/raindropSmart';
 
-// Forecast storage (will be replaced with SmartBuckets)
+// Fallback in-memory forecast storage (used if SmartBuckets unavailable)
 const forecasts: Map<string, Forecast> = new Map();
+
+// Helper to store forecast (tries SmartBuckets first, falls back to memory)
+async function storeForecast(forecast: Forecast): Promise<void> {
+  const bucket = 'forecasts';
+  const key = `${forecast.projectId}/${forecast.date}`;
+  const stored = await smartBuckets.put(bucket, key, forecast);
+  
+  if (!stored) {
+    // Fallback to in-memory storage
+    forecasts.set(`${forecast.projectId}_${forecast.date}`, forecast);
+  }
+}
+
+// Helper to get forecast (tries SmartBuckets first, falls back to memory)
+async function getForecast(projectId: string, date: string): Promise<Forecast | null> {
+  const bucket = 'forecasts';
+  const key = `${projectId}/${date}`;
+  const forecast = await smartBuckets.get(bucket, key);
+  
+  if (forecast) {
+    return forecast;
+  }
+  
+  // Fallback to in-memory storage
+  return forecasts.get(`${projectId}_${date}`) || null;
+}
 
 // Extract user ID from token
 function getUserIdFromToken(req: IncomingMessage): string | null {
@@ -50,18 +77,47 @@ export async function handleGetForecast(req: IncomingMessage, res: ServerRespons
   const urlObj = new URL(req.url || '', 'http://localhost');
   const date = urlObj.searchParams.get('date') || new Date().toISOString().split('T')[0];
 
-  // Check if forecast exists for this date
-  const forecastKey = `${projectId}_${date}`;
-  let forecast = forecasts.get(forecastKey);
+  // Check if forecast exists for this date (tries SmartBuckets, falls back to memory)
+  let forecast = await getForecast(projectId, date);
 
   // Generate new forecast if doesn't exist or is older than 24 hours
   if (!forecast || shouldRegenerateForecast(forecast)) {
     try {
-      forecast = await generateForecast(projectId, date);
-      forecasts.set(forecastKey, forecast);
+      // Try SmartInference first
+      const inferenceResult = await smartInference.run('forecast_generation', {
+        projectId,
+        date,
+      });
+      
+      if (inferenceResult && inferenceResult.forecastText) {
+        // Use SmartInference result
+        forecast = {
+          id: `forecast_${projectId}_${date}`,
+          projectId,
+          date,
+          forecastText: inferenceResult.forecastText,
+          actions: inferenceResult.actions || [],
+          riskScore: inferenceResult.riskScore || 0,
+          confidence: inferenceResult.confidence || 50,
+          generatedAt: new Date().toISOString(),
+        };
+      } else {
+        // Fallback to local forecast generation
+        forecast = await generateForecast(projectId, date);
+      }
+      
+      // Store forecast (tries SmartBuckets, falls back to memory)
+      await storeForecast(forecast);
     } catch (error: any) {
-      sendError(res, 500, `Failed to generate forecast: ${error.message}`);
-      return;
+      console.error('Forecast generation error:', error);
+      // Try fallback generation
+      try {
+        forecast = await generateForecast(projectId, date);
+        await storeForecast(forecast);
+      } catch (fallbackError: any) {
+        sendError(res, 500, `Failed to generate forecast: ${fallbackError.message}`);
+        return;
+      }
     }
   }
 
@@ -82,9 +138,28 @@ export async function handleGetForecastHistory(req: IncomingMessage, res: Server
     return;
   }
 
-  // Get all forecasts for this project
-  const projectForecasts = Array.from(forecasts.values())
-    .filter(f => f.projectId === projectId)
+  // Get all forecasts for this project (tries SmartBuckets, falls back to memory)
+  const bucket = 'forecasts';
+  const prefix = `${projectId}/`;
+  const keys = await smartBuckets.list(bucket, prefix);
+  
+  let projectForecasts: Forecast[] = [];
+  
+  if (keys.length > 0) {
+    // Retrieve from SmartBuckets
+    for (const key of keys.slice(-30)) {
+      const forecast = await smartBuckets.get(bucket, key);
+      if (forecast) {
+        projectForecasts.push(forecast);
+      }
+    }
+  } else {
+    // Fallback to in-memory storage
+    projectForecasts = Array.from(forecasts.values())
+      .filter(f => f.projectId === projectId);
+  }
+  
+  projectForecasts = projectForecasts
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 30); // Last 30 forecasts
 

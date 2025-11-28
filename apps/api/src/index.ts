@@ -80,5 +80,8 @@ server.listen(PORT, () => {
   console.log(`   Auth: POST /api/auth/register, POST /api/auth/login`);
   console.log(`   Projects: GET /api/projects, POST /api/projects`);
   console.log(`   Ingest: POST /api/ingest/:projectId`);
+  console.log(`   Forecast: GET /api/forecast/:projectId`);
   console.log(`   Vultr Worker: ${process.env.VULTR_WORKER_URL || 'http://localhost:8080'}`);
+  console.log(`   Raindrop MCP: ${process.env.RAINDROP_MCP_URL || 'http://localhost:3002'}`);
+  console.log(`   Raindrop Status: ${process.env.RAINDROP_API_KEY ? 'Configured' : 'Not configured (using fallback)'}`);
 });

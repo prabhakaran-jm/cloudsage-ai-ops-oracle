@@ -4,8 +4,9 @@ import { parseBody } from '../utils/parseBody';
 import { sendSuccess, sendError } from '../utils/response';
 import { getProjectRiskScore } from '../services/riskLogic';
 import { calculateRiskScoreFromVultr } from '../services/vultrClient';
+import { smartSQL } from '../services/raindropSmart';
 
-// Simple in-memory project store (will be replaced with SmartSQL later)
+// Fallback in-memory project store (used if SmartSQL unavailable)
 const projects: Map<string, {
   id: string;
   userId: string;
@@ -16,6 +17,92 @@ const projects: Map<string, {
 }> = new Map();
 
 let nextProjectId = 1;
+
+// Helper to get projects (tries SmartSQL first, falls back to memory)
+async function getProjectsFromDB(userId: string): Promise<any[]> {
+  try {
+    const rows = await smartSQL.query(
+      'SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC',
+      [userId]
+    );
+    if (rows.length > 0) {
+      return rows;
+    }
+  } catch (error) {
+    console.warn('SmartSQL query failed, using fallback:', error);
+  }
+  
+  // Fallback to in-memory storage
+  return Array.from(projects.values())
+    .filter(p => p.userId === userId);
+}
+
+// Helper to get project by ID (tries SmartSQL first, falls back to memory)
+async function getProjectFromDB(projectId: string): Promise<any | null> {
+  try {
+    const rows = await smartSQL.query(
+      'SELECT * FROM projects WHERE id = ?',
+      [projectId]
+    );
+    if (rows.length > 0) {
+      return rows[0];
+    }
+  } catch (error) {
+    console.warn('SmartSQL query failed, using fallback:', error);
+  }
+  
+  // Fallback to in-memory storage
+  return projects.get(projectId) || null;
+}
+
+// Helper to create project (tries SmartSQL first, falls back to memory)
+async function createProjectInDB(project: any): Promise<void> {
+  try {
+    await smartSQL.execute(
+      'INSERT INTO projects (id, user_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [project.id, project.userId, project.name, project.description || '', project.createdAt, project.updatedAt]
+    );
+    return; // Success, don't use fallback
+  } catch (error) {
+    console.warn('SmartSQL insert failed, using fallback:', error);
+  }
+  
+  // Fallback to in-memory storage
+  projects.set(project.id, project);
+}
+
+// Helper to update project (tries SmartSQL first, falls back to memory)
+async function updateProjectInDB(projectId: string, updates: any): Promise<void> {
+  try {
+    await smartSQL.execute(
+      'UPDATE projects SET name = ?, description = ?, updated_at = ? WHERE id = ?',
+      [updates.name, updates.description || '', updates.updatedAt, projectId]
+    );
+    return; // Success, don't use fallback
+  } catch (error) {
+    console.warn('SmartSQL update failed, using fallback:', error);
+  }
+  
+  // Fallback to in-memory storage
+  const project = projects.get(projectId);
+  if (project) {
+    Object.assign(project, updates);
+    projects.set(projectId, project);
+  }
+}
+
+// Helper to delete project (tries SmartSQL first, falls back to memory)
+async function deleteProjectFromDB(projectId: string): Promise<void> {
+  try {
+    await smartSQL.execute('DELETE FROM projects WHERE id = ?', [projectId]);
+    return; // Success, don't use fallback
+  } catch (error) {
+    console.warn('SmartSQL delete failed, using fallback:', error);
+  }
+  
+  // Fallback to in-memory storage
+  projects.delete(projectId);
+}
 
 // Extract user ID from token (simplified for MVP)
 function getUserIdFromToken(req: IncomingMessage): string | null {
@@ -48,17 +135,16 @@ export async function handleGetProjects(req: IncomingMessage, res: ServerRespons
   const userId = requireAuth(req, res);
   if (!userId) return;
 
-  const userProjects = Array.from(projects.values())
-    .filter(p => p.userId === userId)
-    .map(p => ({
-      id: p.id,
-      name: p.name,
-      description: p.description,
-      createdAt: p.createdAt,
-      updatedAt: p.updatedAt,
-    }));
+  const userProjects = await getProjectsFromDB(userId);
+  const formattedProjects = userProjects.map(p => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+  }));
 
-  sendSuccess(res, { projects: userProjects });
+  sendSuccess(res, { projects: formattedProjects });
 }
 
 export async function handleGetProject(req: IncomingMessage, res: ServerResponse) {
@@ -76,7 +162,7 @@ export async function handleGetProject(req: IncomingMessage, res: ServerResponse
     return;
   }
 
-  const project = projects.get(projectId);
+  const project = await getProjectFromDB(projectId);
   if (!project) {
     sendError(res, 404, 'Project not found');
     return;
@@ -89,7 +175,7 @@ export async function handleGetProject(req: IncomingMessage, res: ServerResponse
 
   // Get project logs and calculate risk score
   const { getLogsForProject } = await import('../routes/ingest');
-  const projectLogs = getLogsForProject(projectId);
+  const projectLogs = await getLogsForProject(projectId);
   
   // Try Vultr worker first, fallback to local calculation
   let riskScore;
@@ -123,7 +209,7 @@ export async function handleCreateProject(req: IncomingMessage, res: ServerRespo
       return;
     }
 
-    const projectId = `project_${nextProjectId++}`;
+    const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
 
     const project = {
@@ -135,7 +221,7 @@ export async function handleCreateProject(req: IncomingMessage, res: ServerRespo
       updatedAt: now,
     };
 
-    projects.set(projectId, project);
+    await createProjectInDB(project);
 
     sendSuccess(res, { project }, 201);
   } catch (error) {
@@ -157,7 +243,7 @@ export async function handleUpdateProject(req: IncomingMessage, res: ServerRespo
     return;
   }
 
-  const project = projects.get(projectId);
+  const project = await getProjectFromDB(projectId);
   if (!project) {
     sendError(res, 404, 'Project not found');
     return;
@@ -172,13 +258,18 @@ export async function handleUpdateProject(req: IncomingMessage, res: ServerRespo
     const body = await parseBody(req);
     const { name, description } = body;
 
-    project.name = name || project.name;
-    project.description = description !== undefined ? description : project.description;
-    project.updatedAt = new Date().toISOString();
+    const updates = {
+      name: name || project.name,
+      description: description !== undefined ? description : project.description,
+      updatedAt: new Date().toISOString(),
+    };
 
-    projects.set(projectId, project);
+    await updateProjectInDB(projectId, updates);
+    
+    // Get updated project
+    const updatedProject = await getProjectFromDB(projectId);
 
-    sendSuccess(res, { project });
+    sendSuccess(res, { project: updatedProject });
   } catch (error) {
     sendError(res, 500, 'Internal server error');
   }
@@ -198,7 +289,7 @@ export async function handleDeleteProject(req: IncomingMessage, res: ServerRespo
     return;
   }
 
-  const project = projects.get(projectId);
+  const project = await getProjectFromDB(projectId);
   if (!project) {
     sendError(res, 404, 'Project not found');
     return;
@@ -209,6 +300,6 @@ export async function handleDeleteProject(req: IncomingMessage, res: ServerRespo
     return;
   }
 
-  projects.delete(projectId);
+  await deleteProjectFromDB(projectId);
   sendSuccess(res, { message: 'Project deleted successfully' });
 }

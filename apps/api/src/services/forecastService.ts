@@ -1,7 +1,8 @@
-// Forecast generation service using SmartInference (stub implementation)
-// This will be replaced with actual Raindrop SmartInference integration
+// Forecast generation service using SmartInference
+// Uses SmartInference when available, falls back to local generation
 
 import { getRiskHistory } from '../routes/ingest';
+import { smartMemory } from './raindropSmart';
 
 export interface Forecast {
   id: string;
@@ -27,10 +28,18 @@ export interface ForecastContext {
  */
 export async function generateForecast(projectId: string, date: string = new Date().toISOString().split('T')[0]): Promise<Forecast> {
   // Get risk history for context
-  const riskHistory = getRiskHistory(projectId, 30); // Last 30 days
+  const riskHistory = await getRiskHistory(projectId, 30); // Last 30 days
+  
+  // Get project baseline from SmartMemory (if available)
+  let baseline = null;
+  try {
+    baseline = await smartMemory.get('project', `project:${projectId}:baseline`);
+  } catch (error) {
+    // Ignore, use defaults
+  }
   
   // Analyze trends
-  const context = analyzeRiskContext(riskHistory);
+  const context = analyzeRiskContext(riskHistory, baseline);
   
   // Generate forecast text using inference (stub)
   const forecastText = generateForecastText(context);
@@ -56,7 +65,7 @@ export async function generateForecast(projectId: string, date: string = new Dat
   };
 }
 
-function analyzeRiskContext(riskHistory: any[]): ForecastContext {
+function analyzeRiskContext(riskHistory: any[], baseline: any = null): ForecastContext {
   if (riskHistory.length === 0) {
     return {
       recentRiskScores: [],
@@ -89,7 +98,8 @@ function analyzeRiskContext(riskHistory: any[]): ForecastContext {
   // Extract top risk factors from labels
   const labelCounts = new Map<string, number>();
   recentScores.forEach(s => {
-    s.labels.forEach(label => {
+    const labels = Array.isArray(s.labels) ? s.labels : [];
+    labels.forEach((label: string) => {
       labelCounts.set(label, (labelCounts.get(label) || 0) + 1);
     });
   });

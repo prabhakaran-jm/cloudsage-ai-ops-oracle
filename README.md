@@ -99,15 +99,18 @@ docs/
 ### Prerequisites
 
 - Node.js 18+ and npm
-- Raindrop account and API key
+- Raindrop account and API key 
 - Vultr account (for worker deployment)
 
 ### Setup
 
 1. Clone the repository
 2. Install dependencies: `npm install`
-3. Copy `.env.example` to `.env` and fill in your keys
-4. Follow the build plan in `docs/BUILD_PLAN.md`
+3. Copy `apps/api/.env.example` to `apps/api/.env` and fill in your keys:
+   - `RAINDROP_API_KEY` - Your Raindrop API key
+   - `RAINDROP_MCP_URL` - Raindrop MCP server URL (default: http://localhost:3002)
+   - `VULTR_WORKER_URL` - Your Vultr worker URL
+4. See `docs/RAINDROP_INTEGRATION.md` for Raindrop SmartComponents setup
 
 ### Development
 
