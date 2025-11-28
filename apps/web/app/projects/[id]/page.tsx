@@ -55,6 +55,34 @@ export default function ProjectDetailPage() {
     }
   };
 
+  const loadForecast = async () => {
+    try {
+      setForecastLoading(true);
+      const data = await apiClient.getForecast(projectId);
+      setForecast(data.forecast);
+    } catch (err: any) {
+      console.error('Failed to load forecast:', err);
+      // Don't show error for forecast, it's optional
+    } finally {
+      setForecastLoading(false);
+    }
+  };
+
+  const loadRiskHistory = async () => {
+    try {
+      const data = await apiClient.getRiskHistory(projectId, 30);
+      setRiskHistory(data.history);
+    } catch (err: any) {
+      console.error('Failed to load risk history:', err);
+    }
+  };
+
+  const handleRefresh = () => {
+    loadProject();
+    loadForecast();
+    loadRiskHistory();
+  };
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
