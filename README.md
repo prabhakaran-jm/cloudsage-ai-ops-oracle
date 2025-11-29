@@ -130,7 +130,6 @@ npm run dev:vultr-worker
 ## Documentation
 
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and component design
-- **[RAINDROP_INTEGRATION.md](docs/RAINDROP_INTEGRATION.md)** - Guide for integrating Raindrop SmartComponents
 
 
 ---
