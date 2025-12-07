@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node dist/main.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "dotenv": "^17.2.3"
+  },
   "devDependencies": {
     "@types/node": "^20",
     "typescript": "^5",

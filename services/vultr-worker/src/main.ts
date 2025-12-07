@@ -1,4 +1,7 @@
 // Main entry point for Vultr worker service
+// Load environment variables from .env file
+import 'dotenv/config';
+
 import { createServer } from 'http';
 import { calculateRiskScore, ScoreRequest } from './model.js';
 
