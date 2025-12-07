@@ -15,25 +15,36 @@ async function getUserByEmail(email: string): Promise<any | null> {
       'SELECT * FROM users WHERE email = ?',
       [email]
     );
-    if (rows.length > 0) {
+    if (rows && rows.length > 0) {
       return rows[0];
     }
+    // If rows is empty, SmartSQL might not be working, try fallback
   } catch (error) {
     console.warn('SmartSQL query failed, using fallback:', error);
   }
   
   // Fallback to in-memory storage
-  return users.get(email) || null;
+  const inMemoryUser = users.get(email);
+  if (inMemoryUser) {
+    return inMemoryUser;
+  }
+  
+  return null;
 }
 
 // Helper to create user (tries SmartSQL first, falls back to memory)
 async function createUserInDB(user: { id: string; email: string; password: string }): Promise<void> {
   try {
-    await smartSQL.execute(
+    const result = await smartSQL.execute(
       'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
       [user.id, user.email, user.password, new Date().toISOString(), new Date().toISOString()]
     );
-    return; // Success, don't use fallback
+    // Check if insert actually succeeded
+    if (result && result.affectedRows > 0) {
+      return; // Success, don't use fallback
+    }
+    // If affectedRows is 0, SmartSQL didn't work, use fallback
+    console.warn('SmartSQL insert returned 0 affected rows, using fallback');
   } catch (error) {
     console.warn('SmartSQL insert failed, using fallback:', error);
   }
