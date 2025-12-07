@@ -10,12 +10,34 @@ import { calculateRiskScore, ScoreRequest } from './model.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load .env file from the worker directory (services/vultr-worker/.env)
-// When compiled, dist/main.js is in dist/, so we go up one level to find .env
-dotenv.config({ path: join(__dirname, '..', '.env') });
+// Try multiple paths for .env file
+const envPaths = [
+  join(__dirname, '..', '.env'), // From dist/ to services/vultr-worker/.env
+  join(process.cwd(), '.env'), // Current working directory
+  '/root/cloudsage-ai-ops-oracle/services/vultr-worker/.env', // Absolute path
+];
 
-// Also try loading from current working directory (for PM2)
-dotenv.config({ path: join(process.cwd(), '.env') });
+console.log(`📁 __dirname: ${__dirname}`);
+console.log(`📁 process.cwd(): ${process.cwd()}`);
+
+let envLoaded = false;
+for (const envPath of envPaths) {
+  console.log(`📁 Trying .env at: ${envPath}`);
+  const result = dotenv.config({ path: envPath });
+  if (!result.error && result.parsed && Object.keys(result.parsed).length > 0) {
+    console.log(`✅ Loaded ${Object.keys(result.parsed).length} env vars from ${envPath}`);
+    envLoaded = true;
+    break;
+  } else if (result.error) {
+    console.log(`⚠️  ${envPath}: ${result.error.message}`);
+  } else {
+    console.log(`⚠️  ${envPath}: File found but empty or no variables`);
+  }
+}
+
+if (!envLoaded) {
+  console.warn('⚠️  No .env file loaded! Using default values.');
+}
 
 const PORT = process.env.PORT || 8080;
 const API_KEY = process.env.API_KEY || 'default-key-change-in-production';
