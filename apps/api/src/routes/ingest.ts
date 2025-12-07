@@ -162,6 +162,16 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
 
       // Store risk score in history (will be replaced with SmartSQL)
       storeRiskScore(projectId, riskScore);
+      
+      // Include risk score in response
+      sendSuccess(res, {
+        message: `Ingested ${storedLogs.length} log entries`,
+        count: storedLogs.length,
+        projectId,
+        timestamp,
+        riskScore,
+      }, 201);
+      return;
     } catch (error) {
       console.error('Error calculating risk score:', error);
       // Don't fail the ingestion if risk calculation fails
