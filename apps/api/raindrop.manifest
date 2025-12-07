@@ -1,0 +1,123 @@
+// Raindrop Manifest Template
+// This template shows examples of all available modules in Raindrop
+// Generated service handlers include Hono.js for HTTP services
+// Uncomment the modules you want to use in your application
+
+application "cloudsage_api" {
+
+  // === Environment Variables ===
+  env "PORT" {
+    default = "3001"
+  }
+
+  env "NODE_ENV" {
+    default = "production"
+  }
+
+  env "RAINDROP_MCP_URL" {
+    secret = true
+  }
+
+  env "RAINDROP_API_KEY" {
+    secret = true
+  }
+
+  env "VULTR_WORKER_URL" {
+    secret = true
+  }
+
+  env "VULTR_API_KEY" {
+    secret = true
+  }
+
+  // === Services ===
+  service "api" {
+    visibility = "public"
+    domain {
+      cname = "cloudsage-api"
+    }
+  }
+
+  // === MCP Services ===
+  // Model Context Protocol services for AI integrations
+  // mcp_service "ai-assistant" {
+  //   visibility = "protected"
+  //   authorization_server = "https://your-auth-server.com"
+  // }
+
+  // === Actors ===
+  // Stateful actors: serverless objects with RPC, kv storage, cron and background processing
+  // actor "my-actor" {}
+
+  // === Observers ===
+  // Event-driven handlers that react to data changes
+  // observer "file-processor" {
+  //   source {
+  //     bucket = "my-bucket"  // ONLY buckets, NOT smartbuckets
+  //     // Additional source configuration
+  //   }
+  // }
+
+  // observer "queue-processor" {
+  //   source {
+  //     queue = "my-queue"
+  //   }
+  // }
+
+  // === Tasks ===
+  // Scheduled tasks for periodic operations
+  // task "daily-report" {
+  //   type = "cron"
+  //   cron = "0 2 * * *"  // Daily at 2 AM
+  // }
+
+  // task "heartbeat" {
+  //   type = "cron"
+  //   cron = "*/5 * * * *"  // Every 5 minutes
+  // }
+
+  // === Storage ===
+  // Bucket storage for files and objects
+  // bucket "file-storage" {
+  //   location_hint = "wnam"  // OPTIONAL
+  //   visibility = "protected"  // OPTIONAL (enables S3)
+  // }
+  // bucket "public-assets" {}
+
+  // === Databases ===
+  // SQL databases for structured data
+  // sql_database "app-db" {}
+
+  // SmartSQL for AI-powered natural language queries
+  smartsql "main-db" {}
+
+  // === Key-Value Storage ===
+  // KV cache for fast key-value operations
+  // kv_cache "session-cache" {}
+
+  // === AI and Memory ===
+  // SmartBucket for document storage with AI-powered search
+  smartbucket "logs" {}
+  smartbucket "forecasts" {}
+
+  // SmartMemory for semantic memory and context management
+  smartmemory "user-patterns" {}
+
+  // === Message Queues ===
+  // Queue for asynchronous message processing
+  // queue "task-queue" {}
+
+  // queue "event-stream" {}
+
+  // === Module-specific Environment Variables ===
+  // You can bind environment variables to specific modules
+  // service "api" {
+  //   env "API_SECRET" {
+  //     secret = true
+  //   }
+  //
+  //   domain {
+  //     fqdn = "api.your-domain.com"
+  //   }
+  // }
+}
