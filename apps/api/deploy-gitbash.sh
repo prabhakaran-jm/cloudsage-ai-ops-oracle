@@ -106,8 +106,28 @@ export PATH="$FINAL_PATH"
 echo "Using PATH with npx locations..."
 echo ""
 
-# Deploy with explicit PATH
-if env PATH="$FINAL_PATH" raindrop build deploy --start; then
+# Try deploying without --start first (just upload)
+echo "Step 1: Uploading build..."
+if env PATH="$FINAL_PATH" raindrop build deploy; then
+  echo "✓ Build uploaded successfully"
+  echo ""
+  echo "Step 2: Starting service..."
+  # Then start separately
+  if env PATH="$FINAL_PATH" raindrop build start; then
+    echo "✓ Service started"
+    DEPLOY_SUCCESS=true
+  else
+    echo "⚠️  Service start failed, but build is uploaded"
+    echo "Try: raindrop build start"
+    DEPLOY_SUCCESS=false
+  fi
+elif env PATH="$FINAL_PATH" raindrop build deploy --start; then
+  DEPLOY_SUCCESS=true
+else
+  DEPLOY_SUCCESS=false
+fi
+
+if [ "$DEPLOY_SUCCESS" = true ]; then
   echo ""
   echo "✓ Deployment successful!"
   echo ""
