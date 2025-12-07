@@ -3,8 +3,8 @@
   # Base directory - Netlify will cd into this directory before building
   base = "apps/web"
   
-  # Build command - use npm directly (turbo not needed for single app build)
-  command = "npm run build"
+  # Build command - ensure dependencies are installed first
+  command = "npm install && npm run build"
   
   # Publish directory (relative to base directory)
   # For Next.js standalone output, use .next/standalone or just .next
