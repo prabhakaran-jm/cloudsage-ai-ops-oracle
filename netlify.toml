@@ -7,15 +7,21 @@
   command = "npm run build"
   
   # Publish directory (relative to base directory)
+  # For Next.js, we need to publish the static output
   publish = ".next"
 
-# Next.js plugin - ensure it can find Next.js
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
-  
-# Environment variables should be set in Netlify Dashboard:
-# NEXT_PUBLIC_API_URL = https://cloudsage-api.01k844rvnc9e5n807arvr4wn0t.lmapp.run/api
+# Redirects for client-side routing (SPA fallback)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  conditions = {Role = ["admin"]}
 
+# Next.js plugin - commented out to troubleshoot runtime error
+# The plugin requires Next.js server files which aren't available in monorepo
+# [[plugins]]
+#   package = "@netlify/plugin-nextjs"
+  
 # Environment variables should be set in Netlify Dashboard:
 # NEXT_PUBLIC_API_URL = https://cloudsage-api.01k844rvnc9e5n807arvr4wn0t.lmapp.run/api
 
