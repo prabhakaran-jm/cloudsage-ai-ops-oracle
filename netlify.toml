@@ -3,16 +3,16 @@
   # Base directory - Netlify will cd into this directory before building
   base = "apps/web"
   
-  # Build command - ensure dependencies are installed first
-  command = "npm install && npm run build"
+  # Build command - npm install runs automatically, just build
+  command = "npm run build"
   
   # Publish directory (relative to base directory)
-  # For static export, Next.js outputs to 'out' directory
-  publish = "out"
+  publish = ".next"
 
-# No Next.js plugin needed for static export
-# Static export doesn't require server-side rendering
-
+# Next.js plugin - ensure it can find Next.js
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+  
 # Environment variables should be set in Netlify Dashboard:
 # NEXT_PUBLIC_API_URL = https://cloudsage-api.01k844rvnc9e5n807arvr4wn0t.lmapp.run/api
 
