@@ -44,4 +44,13 @@ coverage
 *.tmp
 *.temp
 *~
+*.backup
+*.bak
+npx
+npx.cmd
+npx.ps1
+npx-wrapper.*
+npx-shim.*
+setup-windows-npx.sh
+test-npx-shim.sh
 

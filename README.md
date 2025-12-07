@@ -1,11 +1,8 @@
 # CloudSage – AI Ops Oracle for Solo Engineers
 
 CloudSage is an AI-powered Ops assistant for solo developers and tiny teams.
-
 You paste logs and infra signals.
-
 CloudSage predicts near-term failure risk and gives you a short, practical action plan.
-
 Built for **The AI Champion Ship – Vibe. Code. Ship.**
 
 ---
@@ -15,19 +12,13 @@ Built for **The AI Champion Ship – Vibe. Code. Ship.**
 Solo engineers run production systems without an SRE team.
 
 They see:
-
 - growing error rates
-
 - rising latency
-
 - noisy logs
 
 They lack:
-
 - a clear risk score
-
 - early warning
-
 - a small action list for each day
 
 CloudSage turns yesterday's signals into tomorrow's risk forecast.
@@ -37,15 +28,10 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 ## High level features
 
 - Project-based view of your services.
-
 - Log and signal ingest for each project.
-
 - Vultr-backed risk analysis service.
-
 - Risk score (0–100) with top risk labels.
-
 - Daily forecast with 3 concrete actions.
-
 - History view and trend chart.
 
 ---
@@ -53,23 +39,14 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 ## Tech stack
 
 - **Frontend:** Next.js + TypeScript + Tailwind CSS
-
 - **Backend:** Raindrop MCP server (TypeScript)
-
 - **AI / memory layer:** Raindrop SmartComponents
-
   - SmartBuckets for raw logs and forecasts
-
   - SmartSQL for risk history and feedback
-
   - SmartMemory for project and user patterns
-
   - SmartInference for risk forecast and action plans
-
 - **Compute:** Vultr Cloud Compute / GPU for risk scoring worker
-
 - **Auth (MVP):** Email + password
-
 - **Payments (optional later):** Stripe
 
 ---

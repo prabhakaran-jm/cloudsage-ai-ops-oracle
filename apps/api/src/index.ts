@@ -1,4 +1,7 @@
 // Main entry point for the Raindrop-backed API
+// Load environment variables from .env file
+import 'dotenv/config';
+
 import { createServer } from 'http';
 import { Router } from './utils/router';
 import { sendError } from './utils/response';

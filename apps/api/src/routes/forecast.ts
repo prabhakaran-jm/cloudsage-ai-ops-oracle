@@ -184,10 +184,10 @@ export async function handleGetRiskHistory(req: IncomingMessage, res: ServerResp
   const urlObj = new URL(req.url || '', 'http://localhost');
   const limit = parseInt(urlObj.searchParams.get('limit') || '30');
 
-  const history = getRiskHistory(projectId, limit);
+  const history = await getRiskHistory(projectId, limit);
 
   sendSuccess(res, {
-    history: history.map(h => ({
+    history: history.map((h: any) => ({
       score: h.score,
       timestamp: h.timestamp,
       labels: h.labels,

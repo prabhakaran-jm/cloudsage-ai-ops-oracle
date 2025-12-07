@@ -1,20 +1,23 @@
-# Netlify configuration for CloudSage frontend
+# Netlify configuration for CloudSage frontend (Next.js in monorepo)
 [build]
   # Base directory - Netlify will cd into this directory before building
   base = "apps/web"
   
   # Build command - npm install runs automatically, just build
-  command = "npm run build"
+  command = "npm install --legacy-peer-deps && npm run build"
   
   # Publish directory (relative to base directory)
-  # For Next.js, we need to publish the static output
   publish = ".next"
 
-# Next.js plugin - re-enabled now that .npmrc prevents hoisting
-# This ensures Next.js is installed locally in apps/web/node_modules
+  # Node version
+  [build.environment]
+    NODE_VERSION = "20"
+    NPM_FLAGS = "--legacy-peer-deps"
+
+# Next.js plugin - handles standalone output, serverless functions, and routing
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-  
+
 # Environment variables should be set in Netlify Dashboard:
 # NEXT_PUBLIC_API_URL = https://cloudsage-api.01k844rvnc9e5n807arvr4wn0t.lmapp.run/api
 

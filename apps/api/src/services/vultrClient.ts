@@ -50,11 +50,11 @@ export async function calculateRiskScoreFromVultr(
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Request failed' }));
+      const error: any = await response.json().catch(() => ({ error: 'Request failed' }));
       throw new Error(error.error || `Vultr worker returned ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return data.riskScore;
   } catch (error: any) {
     console.error('Error calling Vultr worker:', error);

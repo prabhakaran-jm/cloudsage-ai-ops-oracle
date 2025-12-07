@@ -26,15 +26,19 @@ app.use('*', async (c: Context<{ Bindings: Env }>, next: () => Promise<void>) =>
   const start = Date.now();
   const url = c.req.url;
   const method = c.req.method;
-  
+
   await next();
-  
+
   const duration = Date.now() - start;
-  if (c.env.logger) {
-    c.env.logger.info(`${method} ${url}`, { 
+  // Safely log if logger exists
+  if (c.env && c.env.logger) {
+    c.env.logger.info(`${method} ${url}`, {
       status: c.res.status,
       duration: `${duration}ms`
     });
+  } else {
+    // Fallback to console logging
+    console.log(`${method} ${url} - ${c.res.status} (${duration}ms)`);
   }
 });
 
