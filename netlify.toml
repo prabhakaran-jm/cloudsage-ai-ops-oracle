@@ -1,0 +1,18 @@
+# Netlify configuration for CloudSage frontend
+[build]
+  # Base directory - Netlify will cd into this directory before building
+  base = "apps/web"
+  
+  # Build command - use npm directly (turbo not needed for single app build)
+  command = "npm run build"
+  
+  # Publish directory (relative to base directory)
+  publish = ".next"
+
+# Next.js plugin for optimal builds
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Environment variables should be set in Netlify Dashboard:
+# NEXT_PUBLIC_API_URL = https://cloudsage-api.01k844rvnc9e5n807arvr4wn0t.lmapp.run/api
+
