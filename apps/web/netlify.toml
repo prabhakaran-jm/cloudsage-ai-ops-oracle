@@ -1,0 +1,16 @@
+[build]
+  # Base directory for the build (relative to repo root)
+  base = "apps/web"
+  
+  # Build command - use npm directly instead of turbo
+  command = "npm run build"
+  
+  # Publish directory
+  publish = ".next"
+
+# Environment variables (set these in Netlify dashboard)
+# NEXT_PUBLIC_API_URL should be set in Netlify dashboard
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
