@@ -35,7 +35,7 @@ async function storeLogs(projectId: string, logEntries: any[]): Promise<void> {
 }
 
 // Helper to retrieve logs (tries SmartBuckets first, falls back to memory)
-async function getLogs(projectId: string): Promise<any[]> {
+export async function getLogs(projectId: string): Promise<any[]> {
   // Try SmartBuckets first
   const bucket = 'logs';
   const prefix = `${projectId}/`;
