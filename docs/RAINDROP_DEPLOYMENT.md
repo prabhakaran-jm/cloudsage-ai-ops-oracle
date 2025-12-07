@@ -20,30 +20,36 @@ All environment variables have been configured via Raindrop CLI:
 
 ## Deployment Options
 
-### Option 1: Raindrop Dashboard (Recommended)
+### Option 1: CLI Deployment (Recommended)
 
-Due to Windows PATH issues with the CLI, use the Raindrop Dashboard:
+Raindrop uses CLI-only deployment. Deploy via command line:
 
-1. **Go to Raindrop Dashboard**
-   - Visit: https://raindrop.liquidmetal.ai
-   - Login with your account
+**Prerequisites:**
+- Raindrop CLI installed: `npm install -g @liquidmetal-ai/raindrop@latest`
+- Authenticated: `raindrop auth login`
+- Build successful: `npm run build`
 
-2. **Create New Application**
-   - Application Name: `cloudsage_api`
-   - Connect your Git repository: `prabhakaran-jm/cloudsage-ai-ops-oracle`
-   - Root Directory: `apps/api`
+**Deploy:**
+```bash
+cd apps/api
+npm run build
+raindrop build deploy --start
+```
 
-3. **Configure Build Settings**
-   - Build Command: `npm install && npm run build`
-   - Start Command: `npm start`
-   - Node Version: `20.x`
+**Get deployment URL:**
+```bash
+raindrop build find
+```
 
-4. **Environment Variables**
-   - Environment variables are already set via CLI
-   - Verify in dashboard: Settings → Environment Variables
+**Check status:**
+```bash
+raindrop build status
+```
 
-5. **Deploy**
-   - Click "Deploy" or enable auto-deploy on push
+**View logs:**
+```bash
+raindrop logs tail
+```
 
 ### Option 2: CLI Deployment (Linux/WSL/Git Bash)
 
