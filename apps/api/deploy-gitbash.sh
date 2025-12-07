@@ -103,12 +103,24 @@ echo ""
 FINAL_PATH="$USER_NPX_DIR:$HOME/.local/bin:$NPX_DIR:$PATH"
 export PATH="$FINAL_PATH"
 
+# Also set PATH in Windows format for Node.js spawn
+export NODE_PATH="$USER_NPX_DIR"
+export NPM_CONFIG_PREFIX="$HOME/AppData/Local/npm"
+
 echo "Using PATH with npx locations..."
+echo ""
+
+# Export npx path explicitly for Node.js spawn
+if [ -f "$NPX_EXE_PATH" ]; then
+  export NPX_PATH="$NPX_EXE_PATH"
+  echo "✓ NPX_PATH set to: $NPX_EXE_PATH"
+fi
+
 echo ""
 
 # Try deploying without --start first (just upload)
 echo "Step 1: Uploading build..."
-if env PATH="$FINAL_PATH" raindrop build deploy; then
+if env PATH="$FINAL_PATH" NODE_PATH="$USER_NPX_DIR" NPM_CONFIG_PREFIX="$HOME/AppData/Local/npm" raindrop build deploy; then
   echo "✓ Build uploaded successfully"
   echo ""
   echo "Step 2: Starting service..."
