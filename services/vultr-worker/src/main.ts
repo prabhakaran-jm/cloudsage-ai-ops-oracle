@@ -1,12 +1,23 @@
 // Main entry point for Vultr worker service
 // Load environment variables from .env file
-import 'dotenv/config';
-
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { createServer } from 'http';
 import { calculateRiskScore, ScoreRequest } from './model.js';
 
+// Get current directory (ES module compatible)
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load .env file from the project root (services/vultr-worker/.env)
+dotenv.config({ path: join(__dirname, '..', '.env') });
+
 const PORT = process.env.PORT || 8080;
 const API_KEY = process.env.API_KEY || 'default-key-change-in-production';
+
+// Log API key status (first 8 chars only for security)
+console.log(`🔑 API Key loaded: ${API_KEY ? API_KEY.substring(0, 8) + '...' : 'NOT FOUND'}`);
 
 // Simple API key authentication
 function requireAuth(req: any): boolean {
