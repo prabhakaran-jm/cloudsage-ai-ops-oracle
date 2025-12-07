@@ -172,7 +172,10 @@ async function testBackendWorkerIntegration() {
       authToken = loginData.token;
       log('   ✅ Login successful', 'green');
     } else {
-      log('   ⚠️  Login failed - trying without auth', 'yellow');
+      const errorData = await loginResponse.json().catch(() => ({ error: 'Unknown error' }));
+      log(`   ⚠️  Login failed: ${JSON.stringify(errorData)}`, 'yellow');
+      log(`   Email: ${testEmail}`, 'yellow');
+      // Try to continue without auth for testing
     }
 
     // Step 3: Create a test project
