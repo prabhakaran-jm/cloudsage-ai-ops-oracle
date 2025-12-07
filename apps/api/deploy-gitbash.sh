@@ -29,29 +29,38 @@ fi
 if [ -n "$NPX_DIR" ]; then
   echo "✓ Found npx at: $NPX_DIR/npx.cmd"
   
-  # Add nodejs directory to PATH
+  # Convert to Windows path format
+  NPX_DIR_WIN=$(echo "$NPX_DIR" | sed 's|^/c/|C:|' | sed 's|/|\\|g')
+  
+  # Create npx.exe in nodejs directory by copying npx.cmd
+  # This ensures Node.js spawn can find it
+  if [ -f "$NPX_DIR/npx.cmd" ] && [ ! -f "$NPX_DIR/npx.exe" ]; then
+    echo "Creating npx.exe in nodejs directory..."
+    # Copy npx.cmd to npx.exe (Windows will treat .exe as executable)
+    cp "$NPX_DIR/npx.cmd" "$NPX_DIR/npx.exe" 2>/dev/null || {
+      # If copy fails, create a wrapper
+      cat > "$NPX_DIR/npx" << EOF
+#!/bin/bash
+cmd.exe /c "$NPX_DIR_WIN\\npx.cmd" "\$@"
+EOF
+      chmod +x "$NPX_DIR/npx"
+    }
+  fi
+  
+  # Ensure nodejs directory is first in PATH
   export PATH="$NPX_DIR:$PATH"
   
-  # Create npx wrapper in nodejs directory (where it will be found)
-  # Convert Windows path to Git Bash format
-  NPX_DIR_BASH=$(echo "$NPX_DIR" | sed 's|^/c/|C:/|' | sed 's|/|\\|g')
-  
-  # Create wrapper in current directory first
-  cat > npx << EOF
-#!/bin/bash
-cmd.exe /c "$NPX_DIR_BASH\\npx.cmd" "\$@"
-EOF
-  chmod +x npx
-  
-  # Also try creating it in a temp location that's in PATH
-  TEMP_NPX="$HOME/.local/bin/npx"
+  # Also create wrapper in ~/.local/bin as backup
   mkdir -p "$HOME/.local/bin"
-  cp npx "$TEMP_NPX"
-  chmod +x "$TEMP_NPX"
+  cat > "$HOME/.local/bin/npx" << EOF
+#!/bin/bash
+cmd.exe /c "$NPX_DIR_WIN\\npx.cmd" "\$@"
+EOF
+  chmod +x "$HOME/.local/bin/npx"
   export PATH="$HOME/.local/bin:$NPX_DIR:$PATH"
   
-  echo "✓ Created npx wrapper in current dir and ~/.local/bin"
-  echo "✓ PATH updated: $HOME/.local/bin and $NPX_DIR added"
+  echo "✓ Created npx wrappers"
+  echo "✓ PATH: $NPX_DIR (first), $HOME/.local/bin (backup)"
 else
   echo "⚠️  npx.cmd not found in standard locations"
   echo "Trying to use npm to find it..."
