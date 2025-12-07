@@ -87,9 +87,6 @@ infra/
   deploy/         # Hosting config (Netlify / Vercel / etc.)
 docs/
   ARCHITECTURE.md # System architecture and design
-  BUILD_PLAN.md   # MVP build plan and phases
-  SRS.md          # Software requirements specification
-  DEMO_SCRIPT.md  # Demo walkthrough script
 ```
 
 ---
@@ -109,8 +106,8 @@ docs/
 3. Copy `apps/api/.env.example` to `apps/api/.env` and fill in your keys:
    - `RAINDROP_API_KEY` - Your Raindrop API key
    - `RAINDROP_MCP_URL` - Raindrop MCP server URL (default: http://localhost:3002)
-   - `VULTR_WORKER_URL` - Your Vultr worker URL
-4. See `docs/RAINDROP_INTEGRATION.md` for Raindrop SmartComponents setup
+   - `VULTR_WORKER_URL` - Your Vultr worker URL (optional)
+4. See `docs/ARCHITECTURE.md` for Raindrop SmartComponents setup
 
 ### Development
 

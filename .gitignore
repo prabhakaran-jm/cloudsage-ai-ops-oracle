@@ -35,4 +35,13 @@ Thumbs.db
 # Build
 dist
 coverage
+*.tsbuildinfo
+
+# Raindrop
+.raindrop
+
+# Temporary files
+*.tmp
+*.temp
+*~
 
