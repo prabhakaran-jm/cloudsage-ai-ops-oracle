@@ -32,35 +32,35 @@ if [ -n "$NPX_DIR" ]; then
   # Convert to Windows path format
   NPX_DIR_WIN=$(echo "$NPX_DIR" | sed 's|^/c/|C:|' | sed 's|/|\\|g')
   
-  # Create npx.exe in nodejs directory by copying npx.cmd
-  # This ensures Node.js spawn can find it
-  if [ -f "$NPX_DIR/npx.cmd" ] && [ ! -f "$NPX_DIR/npx.exe" ]; then
-    echo "Creating npx.exe in nodejs directory..."
-    # Copy npx.cmd to npx.exe (Windows will treat .exe as executable)
-    cp "$NPX_DIR/npx.cmd" "$NPX_DIR/npx.exe" 2>/dev/null || {
-      # If copy fails, create a wrapper
-      cat > "$NPX_DIR/npx" << EOF
+  # Create npx.exe in user-writable location (AppData)
+  # This avoids permission issues with Program Files
+  USER_NPX_DIR="$HOME/AppData/Local/npm"
+  mkdir -p "$USER_NPX_DIR"
+  
+  # Create npx.exe wrapper that calls npx.cmd
+  cat > "$USER_NPX_DIR/npx.exe" << EOF
+@echo off
+"C:\\Program Files\\nodejs\\npx.cmd" %*
+EOF
+  
+  # Also create npx (without extension) for Unix-like tools
+  cat > "$USER_NPX_DIR/npx" << EOF
 #!/bin/bash
 cmd.exe /c "$NPX_DIR_WIN\\npx.cmd" "\$@"
 EOF
-      chmod +x "$NPX_DIR/npx"
-    }
-  fi
+  chmod +x "$USER_NPX_DIR/npx"
   
-  # Ensure nodejs directory is first in PATH
-  export PATH="$NPX_DIR:$PATH"
-  
-  # Also create wrapper in ~/.local/bin as backup
+  # Create in ~/.local/bin as well
   mkdir -p "$HOME/.local/bin"
-  cat > "$HOME/.local/bin/npx" << EOF
-#!/bin/bash
-cmd.exe /c "$NPX_DIR_WIN\\npx.cmd" "\$@"
-EOF
+  cp "$USER_NPX_DIR/npx" "$HOME/.local/bin/npx"
   chmod +x "$HOME/.local/bin/npx"
-  export PATH="$HOME/.local/bin:$NPX_DIR:$PATH"
   
-  echo "✓ Created npx wrappers"
-  echo "✓ PATH: $NPX_DIR (first), $HOME/.local/bin (backup)"
+  # Add both to PATH (user location first, then nodejs)
+  export PATH="$USER_NPX_DIR:$HOME/.local/bin:$NPX_DIR:$PATH"
+  
+  echo "✓ Created npx.exe in $USER_NPX_DIR (user-writable)"
+  echo "✓ Created npx wrapper in ~/.local/bin"
+  echo "✓ PATH updated with user locations first"
 else
   echo "⚠️  npx.cmd not found in standard locations"
   echo "Trying to use npm to find it..."
