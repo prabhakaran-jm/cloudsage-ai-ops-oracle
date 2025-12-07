@@ -58,11 +58,16 @@ async function getProjectFromDB(projectId: string): Promise<any | null> {
 // Helper to create project (tries SmartSQL first, falls back to memory)
 async function createProjectInDB(project: any): Promise<void> {
   try {
-    await smartSQL.execute(
+    const result = await smartSQL.execute(
       'INSERT INTO projects (id, user_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
       [project.id, project.userId, project.name, project.description || '', project.createdAt, project.updatedAt]
     );
-    return; // Success, don't use fallback
+    // Check if insert actually succeeded
+    if (result && result.affectedRows > 0) {
+      return; // Success, don't use fallback
+    }
+    // If affectedRows is 0, SmartSQL didn't work, use fallback
+    console.warn('SmartSQL insert returned 0 affected rows, using fallback');
   } catch (error) {
     console.warn('SmartSQL insert failed, using fallback:', error);
   }
