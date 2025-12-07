@@ -196,9 +196,15 @@ async function testBackendWorkerIntegration() {
 
     let projectId = null;
     if (createProjectResponse.ok) {
-      const project = await createProjectResponse.json();
-      projectId = project.id;
-      log(`   ✅ Project created: ${projectId}`, 'green');
+      const responseData = await createProjectResponse.json();
+      // Handle both { project: { id: ... } } and { id: ... } formats
+      const project = responseData.project || responseData;
+      projectId = project?.id;
+      if (projectId) {
+        log(`   ✅ Project created: ${projectId}`, 'green');
+      } else {
+        log(`   ⚠️  Project created but ID is missing. Response: ${JSON.stringify(responseData)}`, 'yellow');
+      }
     } else {
       // Try to get existing project
       const projectsResponse = await fetch(`${BACKEND_URL}/api/projects`, {
