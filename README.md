@@ -5,6 +5,14 @@ You paste logs and infra signals.
 CloudSage predicts near-term failure risk and gives you a short, practical action plan.
 Built for **The AI Champion Ship – Vibe. Code. Ship.**
 
+## 🚀 Live Demo
+
+- **Frontend:** https://steady-melomakarona-42c054.netlify.app
+- **Backend API:** https://cloudsage-api.01k844rvnc9e5n807arvr4wn0t.lmapp.run
+- **Demo Video:** [Coming soon]
+
+Try it now! Register an account and start analyzing your logs.
+
 ---
 
 ## Problem
@@ -107,6 +115,18 @@ npm run dev:vultr-worker
 
 
 ---
+
+## Hackathon Submission
+
+Built for **The AI Champion Ship** hackathon by LiquidMetal AI.
+
+**Track:** Best Small Startup Agents
+
+**Technology:**
+- Raindrop Platform (SmartBuckets, SmartSQL, SmartMemory, SmartInference)
+- Vultr Cloud Compute (Risk scoring worker)
+- Next.js + TypeScript + Tailwind CSS
+- Deployed on Netlify + Raindrop
 
 ## License
 
