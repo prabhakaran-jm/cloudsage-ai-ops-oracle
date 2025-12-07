@@ -89,8 +89,22 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
   if (!userId) return;
 
   try {
+    // Extract projectId from URL if present (e.g., /api/ingest/:projectId)
+    const url = req.url || '';
+    const parts = url.split('/').filter(p => p);
+    let projectId: string | undefined;
+    
+    const ingestIndex = parts.indexOf('ingest');
+    if (ingestIndex >= 0 && parts.length > ingestIndex + 1) {
+      projectId = parts[ingestIndex + 1];
+    }
+    
+    // Parse body
     const body = await parseBody(req);
-    const { projectId, logs: logContent, metadata } = body;
+    const { projectId: bodyProjectId, logs: logContent, metadata } = body;
+    
+    // Use projectId from URL if available, otherwise from body
+    projectId = projectId || bodyProjectId;
 
     if (!projectId) {
       sendError(res, 400, 'Project ID is required');
