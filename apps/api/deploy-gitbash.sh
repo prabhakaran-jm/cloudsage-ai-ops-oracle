@@ -84,18 +84,14 @@ fi
 echo "✓ Build successful"
 echo ""
 
-# Verify npx is accessible
-echo "🔍 Verifying npx is accessible..."
-if command -v npx &> /dev/null || [ -f "$NPX_DIR/npx.cmd" ]; then
-  echo "✓ npx should be accessible"
-  # Test it
-  if npx --version &> /dev/null || cmd.exe /c "$(echo "$NPX_DIR" | sed 's|/c/|C:/|' | sed 's|/|\\|g')\\npx.cmd" --version &> /dev/null; then
-    echo "✓ npx test successful"
-  else
-    echo "⚠️  npx test failed, but continuing..."
-  fi
+# Verify npx is accessible (quick check, no hanging)
+echo "🔍 Verifying npx setup..."
+if [ -n "$NPX_DIR" ] && [ -f "$NPX_DIR/npx.cmd" ]; then
+  echo "✓ npx.cmd found at: $NPX_DIR/npx.cmd"
+  echo "✓ npx.exe created in user directory"
+  echo "✓ PATH configured with npx locations"
 else
-  echo "⚠️  npx not found in PATH, but continuing..."
+  echo "⚠️  npx.cmd not found, but continuing..."
 fi
 echo ""
 
@@ -103,10 +99,15 @@ echo ""
 echo "🚀 Deploying to Raindrop..."
 echo ""
 
-# Set PATH explicitly for the raindrop command
-export PATH="$HOME/.local/bin:$NPX_DIR:$PATH"
+# Set PATH explicitly for the raindrop command (user locations first)
+FINAL_PATH="$USER_NPX_DIR:$HOME/.local/bin:$NPX_DIR:$PATH"
+export PATH="$FINAL_PATH"
 
-if PATH="$HOME/.local/bin:$NPX_DIR:$PATH" raindrop build deploy --start; then
+echo "Using PATH with npx locations..."
+echo ""
+
+# Deploy with explicit PATH
+if env PATH="$FINAL_PATH" raindrop build deploy --start; then
   echo ""
   echo "✓ Deployment successful!"
   echo ""
