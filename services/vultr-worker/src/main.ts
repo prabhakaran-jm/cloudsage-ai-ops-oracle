@@ -10,8 +10,12 @@ import { calculateRiskScore, ScoreRequest } from './model.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load .env file from the project root (services/vultr-worker/.env)
+// Load .env file from the worker directory (services/vultr-worker/.env)
+// When compiled, dist/main.js is in dist/, so we go up one level to find .env
 dotenv.config({ path: join(__dirname, '..', '.env') });
+
+// Also try loading from current working directory (for PM2)
+dotenv.config({ path: join(process.cwd(), '.env') });
 
 const PORT = process.env.PORT || 8080;
 const API_KEY = process.env.API_KEY || 'default-key-change-in-production';
