@@ -5,6 +5,7 @@ import { sendSuccess, sendError } from '../utils/response';
 import { calculateRiskScoreFromVultr } from '../services/vultrClient';
 import { getProjectRiskScore } from '../services/riskLogic';
 import { smartBuckets, smartSQL } from '../services/raindropSmart';
+import { updateProjectBaseline } from '../services/smartInferenceChains';
 
 // Fallback in-memory log store (used if SmartBuckets unavailable)
 const logs: Map<string, Array<{
@@ -160,8 +161,11 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
         riskScore = getProjectRiskScore(projectLogsForScoring);
       }
 
-      // Store risk score in history (will be replaced with SmartSQL)
-      storeRiskScore(projectId, riskScore);
+      // Store risk score in history
+      await storeRiskScore(projectId, riskScore);
+      
+      // Update project baseline in SmartMemory for better forecasts
+      await updateProjectBaseline(projectId, riskScore.score);
       
       // Include risk score in response
       sendSuccess(res, {

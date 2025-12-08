@@ -83,41 +83,15 @@ export async function handleGetForecast(req: IncomingMessage, res: ServerRespons
   // Generate new forecast if doesn't exist or is older than 24 hours
   if (!forecast || shouldRegenerateForecast(forecast)) {
     try {
-      // Try SmartInference first
-      const inferenceResult = await smartInference.run('forecast_generation', {
-        projectId,
-        date,
-      });
-      
-      if (inferenceResult && inferenceResult.forecastText) {
-        // Use SmartInference result
-        forecast = {
-          id: `forecast_${projectId}_${date}`,
-          projectId,
-          date,
-          forecastText: inferenceResult.forecastText,
-          actions: inferenceResult.actions || [],
-          riskScore: inferenceResult.riskScore || 0,
-          confidence: inferenceResult.confidence || 50,
-          generatedAt: new Date().toISOString(),
-        };
-      } else {
-        // Fallback to local forecast generation
-        forecast = await generateForecast(projectId, date);
-      }
+      // Generate forecast (tries SmartInference, falls back to local AI)
+      forecast = await generateForecast(projectId, date);
       
       // Store forecast (tries SmartBuckets, falls back to memory)
       await storeForecast(forecast);
     } catch (error: any) {
       console.error('Forecast generation error:', error);
-      // Try fallback generation
-      try {
-        forecast = await generateForecast(projectId, date);
-        await storeForecast(forecast);
-      } catch (fallbackError: any) {
-        sendError(res, 500, `Failed to generate forecast: ${fallbackError.message}`);
-        return;
-      }
+      sendError(res, 500, `Failed to generate forecast: ${error.message}`);
+      return;
     }
   }
 

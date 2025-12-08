@@ -39,8 +39,9 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 - Log and signal ingest for each project.
 - Vultr-backed risk analysis service.
 - Risk score (0–100) with top risk labels.
-- Daily forecast with 3 concrete actions.
+- AI-powered daily forecast with 3 concrete actions (SmartInference).
 - History view and trend chart.
+- Learning project patterns over time (SmartMemory).
 
 ---
 
@@ -51,8 +52,8 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 - **AI / memory layer:** Raindrop SmartComponents
   - SmartBuckets for raw logs and forecasts
   - SmartSQL for risk history and feedback
-  - SmartMemory for project and user patterns
-  - SmartInference for risk forecast and action plans
+  - SmartMemory for project baselines and learning
+  - SmartInference for AI-powered forecast generation
 - **Compute:** Vultr Cloud Compute / GPU for risk scoring worker
 - **Auth (MVP):** Email + password
 - **Payments (optional later):** Stripe

@@ -16,19 +16,33 @@ async function getUserByEmail(email: string): Promise<any | null> {
       [email]
     );
     if (rows && rows.length > 0) {
-      return rows[0];
+      const user = rows[0];
+      console.log('[Auth] User found in SmartSQL:', email);
+      console.log('[Auth] User data from DB:', JSON.stringify(user));
+      // Normalize field names from snake_case to camelCase
+      const normalizedUser = {
+        id: user.id,
+        email: user.email,
+        password: user.password_hash || user.password,
+        createdAt: user.created_at || user.createdAt,
+        updatedAt: user.updated_at || user.updatedAt,
+      };
+      console.log('[Auth] Normalized user:', JSON.stringify({ ...normalizedUser, password: '[REDACTED]' }));
+      return normalizedUser;
     }
-    // If rows is empty, SmartSQL might not be working, try fallback
+    // User not found in SmartSQL (but SmartSQL is working)
+    console.log('[Auth] User not found in SmartSQL:', email);
+    return null;
   } catch (error) {
-    console.warn('SmartSQL query failed, using fallback:', error);
+    console.warn('[Auth] SmartSQL query failed, using fallback:', error);
+    // Only use fallback if SmartSQL is unavailable (not just "no results")
+    const inMemoryUser = users.get(email);
+    if (inMemoryUser) {
+      console.log('[Auth] User found in fallback storage:', email);
+      return inMemoryUser;
+    }
   }
-  
-  // Fallback to in-memory storage
-  const inMemoryUser = users.get(email);
-  if (inMemoryUser) {
-    return inMemoryUser;
-  }
-  
+
   return null;
 }
 
@@ -41,16 +55,18 @@ async function createUserInDB(user: { id: string; email: string; password: strin
     );
     // Check if insert actually succeeded
     if (result && result.affectedRows > 0) {
+      console.log('[Auth] User created in SmartSQL:', user.email);
       return; // Success, don't use fallback
     }
-    // If affectedRows is 0, SmartSQL didn't work, use fallback
-    console.warn('SmartSQL insert returned 0 affected rows, using fallback');
+    // If affectedRows is 0, something went wrong
+    console.warn('[Auth] SmartSQL insert returned 0 affected rows, using fallback');
+    throw new Error('Insert failed - 0 rows affected');
   } catch (error) {
-    console.warn('SmartSQL insert failed, using fallback:', error);
+    console.warn('[Auth] SmartSQL insert failed, using fallback:', error);
+    // Fallback to in-memory storage
+    users.set(user.email, user);
+    console.log('[Auth] User created in fallback storage:', user.email);
   }
-  
-  // Fallback to in-memory storage
-  users.set(user.email, user);
 }
 
 // Simple password hashing (for MVP - use bcrypt in production)
@@ -74,25 +90,36 @@ export async function handleRegister(req: IncomingMessage, res: ServerResponse) 
       return;
     }
 
-    const existingUser = await getUserByEmail(email);
-    if (existingUser) {
-      sendError(res, 400, 'User already exists');
-      return;
+    console.log('[Auth] Registration attempt for email:', email);
+
+    // Check if user already exists
+    try {
+      const existingUser = await getUserByEmail(email);
+      if (existingUser) {
+        console.log('[Auth] User already exists:', email);
+        sendError(res, 400, 'User already exists');
+        return;
+      }
+    } catch (error) {
+      console.error('[Auth] Error checking existing user:', error);
+      // Continue with registration even if check fails
     }
 
     const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const hashedPassword = hashPassword(password);
-    
+
     const newUser = {
       id: userId,
       email,
       password: hashedPassword,
     };
-    
+
+    console.log('[Auth] Creating new user:', email);
     await createUserInDB(newUser);
 
     const token = generateToken(userId);
 
+    console.log('[Auth] Registration successful for email:', email);
     sendSuccess(res, {
       token,
       user: {
@@ -100,7 +127,8 @@ export async function handleRegister(req: IncomingMessage, res: ServerResponse) 
         email,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('[Auth] Registration error:', error?.message || error);
     sendError(res, 500, 'Internal server error');
   }
 }
@@ -115,21 +143,28 @@ export async function handleLogin(req: IncomingMessage, res: ServerResponse) {
       return;
     }
 
+    console.log('Login attempt for email:', email);
     const user = await getUserByEmail(email);
-    if (!user) {
-      sendError(res, 401, 'Invalid credentials');
-      return;
-    }
     
-    // Handle password_hash field from SmartSQL
-    const userPassword = user.password_hash || user.password;
-
-    const hashedPassword = hashPassword(password);
-    if (userPassword !== hashedPassword) {
+    if (!user) {
+      console.log('User not found for email:', email);
       sendError(res, 401, 'Invalid credentials');
       return;
     }
 
+    console.log('User found, checking password...');
+    const hashedPassword = hashPassword(password);
+    console.log('[Auth] Stored password hash:', user.password);
+    console.log('[Auth] Provided password hash:', hashedPassword);
+    console.log('[Auth] Passwords match:', user.password === hashedPassword);
+    
+    if (user.password !== hashedPassword) {
+      console.log('Password mismatch for email:', email);
+      sendError(res, 401, 'Invalid credentials');
+      return;
+    }
+
+    console.log('Login successful for email:', email);
     const token = generateToken(user.id);
 
     sendSuccess(res, {
@@ -140,6 +175,7 @@ export async function handleLogin(req: IncomingMessage, res: ServerResponse) {
       },
     });
   } catch (error) {
+    console.error('Login error:', error);
     sendError(res, 500, 'Internal server error');
   }
 }

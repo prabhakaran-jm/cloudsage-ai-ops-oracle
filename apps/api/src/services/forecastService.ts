@@ -3,6 +3,7 @@
 
 import { getRiskHistory } from '../routes/ingest';
 import { smartMemory } from './raindropSmart';
+import { runForecastInference, generateAIForecast } from './smartInferenceChains';
 
 export interface Forecast {
   id: string;
@@ -23,10 +24,30 @@ export interface ForecastContext {
 }
 
 /**
- * Generate daily forecast using SmartInference (stub)
- * Analyzes risk history and generates actionable forecast
+ * Generate daily forecast using SmartInference
+ * Tries SmartInference first, falls back to local AI-powered generation
  */
 export async function generateForecast(projectId: string, date: string = new Date().toISOString().split('T')[0]): Promise<Forecast> {
+  // Try SmartInference first
+  const inferenceResult = await runForecastInference(projectId, date);
+  
+  if (inferenceResult) {
+    // SmartInference succeeded
+    return {
+      id: `forecast_${projectId}_${date}`,
+      projectId,
+      date,
+      forecastText: inferenceResult.forecastText,
+      actions: inferenceResult.actions,
+      riskScore: inferenceResult.riskScore,
+      confidence: inferenceResult.confidence,
+      generatedAt: new Date().toISOString(),
+    };
+  }
+  
+  // Fallback to local AI-powered generation
+  console.log('Using local AI forecast generation for project:', projectId);
+  
   // Get risk history for context
   const riskHistory = await getRiskHistory(projectId, 30); // Last 30 days
   
@@ -41,14 +62,13 @@ export async function generateForecast(projectId: string, date: string = new Dat
   // Analyze trends
   const context = analyzeRiskContext(riskHistory, baseline);
   
-  // Generate forecast text using inference (stub)
-  const forecastText = generateForecastText(context);
-  
-  // Generate 3 actionable items
-  const actions = generateActions(context);
-  
-  // Calculate confidence based on data quality
-  const confidence = calculateConfidence(riskHistory.length, context);
+  // Generate forecast using AI-powered logic
+  const aiResult = generateAIForecast({
+    trend: context.trend,
+    averageScore: context.averageScore,
+    topRiskFactors: context.topRiskFactors,
+    riskHistory: context.recentRiskScores,
+  });
   
   // Get current risk score
   const currentScore = riskHistory.length > 0 ? riskHistory[0].score : 0;
@@ -57,10 +77,10 @@ export async function generateForecast(projectId: string, date: string = new Dat
     id: `forecast_${projectId}_${date}`,
     projectId,
     date,
-    forecastText,
-    actions,
+    forecastText: aiResult.forecastText,
+    actions: aiResult.actions,
     riskScore: currentScore,
-    confidence,
+    confidence: aiResult.confidence,
     generatedAt: new Date().toISOString(),
   };
 }

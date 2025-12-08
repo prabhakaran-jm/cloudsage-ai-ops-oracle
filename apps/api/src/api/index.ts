@@ -2,6 +2,7 @@ import { Service } from '@liquidmetal-ai/raindrop-framework';
 import { Hono, Context } from 'hono';
 import { Env } from './raindrop.gen';
 import { corsAllowAll } from '@liquidmetal-ai/raindrop-framework/core/cors';
+import { smartBuckets } from '../services/raindropSmart';
 
 // Import business logic from route files
 import * as authRoutes from '../routes/auth';
@@ -20,6 +21,14 @@ const app = new Hono<{ Bindings: Env }>();
 
 // CORS middleware - handled by Raindrop framework via _app/cors.ts
 // No need to add here as it's application-wide
+
+// Debug middleware to check env availability
+app.use('*', async (c: Context<{ Bindings: Env }>, next: () => Promise<void>) => {
+  console.log('[CloudSage] Request:', c.req.method, c.req.url);
+  console.log('[CloudSage] c.env exists:', !!c.env);
+  console.log('[CloudSage] c.env.MAIN_DB exists:', !!c.env?.MAIN_DB);
+  await next();
+});
 
 // Request logging middleware
 app.use('*', async (c: Context<{ Bindings: Env }>, next: () => Promise<void>) => {
@@ -90,41 +99,62 @@ app.post('/api/auth/register', async (c: Context<{ Bindings: Env }>) => {
       return c.json({ error: 'Email and password are required' }, 400);
     }
 
-    // Use existing auth logic
-    const mockReq = { body } as any;
-    const mockRes = {
-      writeHead: () => {},
-      end: () => {},
-      setHeader: () => {},
-    } as any;
-    
-    // Call existing handler
-    await authRoutes.handleRegister(mockReq, mockRes);
-    
-    // Extract response from mockRes (we'll need to modify this approach)
-    // For now, let's inline the logic
-    const { smartSQL } = await import('../services/raindropSmart');
-    
-    // Check if user exists
-    const rows = await smartSQL.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (rows && rows.length > 0) {
+    console.log('[Auth] Registration attempt for email:', email);
+
+    // Check SmartBuckets first
+    const existingUser = await smartBuckets.get('users', email);
+    if (existingUser) {
+      console.log('[Auth] User already exists (Bucket):', email);
       return c.json({ error: 'User already exists' }, 400);
+    }
+
+    const db = c.env?.MAIN_DB as any;
+    
+    // Check SQL as backup if available
+    if (db) {
+      try {
+        const checkResult = await db.executeQuery({
+          textQuery: `SELECT * FROM users WHERE email = '${email.replace(/'/g, "''")}'`,
+          format: 'json'
+        });
+
+        if (checkResult.results && checkResult.results.length > 0) {
+          console.log('[Auth] User already exists (SQL):', email);
+          return c.json({ error: 'User already exists' }, 400);
+        }
+      } catch (e) {
+        console.warn('[Auth] SQL check failed, proceeding:', e);
+      }
     }
 
     // Create user
     const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    // Use btoa for base64 encoding (works in Cloudflare Workers)
     const hashedPassword = btoa(password);
-    
-    const result = await smartSQL.execute(
-      'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-      [userId, email, hashedPassword, new Date().toISOString(), new Date().toISOString()]
-    );
-    
-    // Fallback to in-memory if SmartSQL fails
-    if (!result || result.affectedRows === 0) {
-      // In-memory fallback would be handled in the route file
-      // For now, assume success
+    const now = new Date().toISOString();
+
+    const userData = {
+      id: userId,
+      email,
+      password_hash: hashedPassword,
+      created_at: now,
+      updated_at: now
+    };
+
+    // Store in SmartBuckets (Primary)
+    await smartBuckets.put('users', email, userData);
+    console.log('[Auth] User created in SmartBuckets:', email);
+
+    // Store in SQL (Secondary/Backup)
+    if (db) {
+      try {
+        await db.executeQuery({
+          textQuery: `INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES ('${userId}', '${email.replace(/'/g, "''")}', '${hashedPassword}', '${now}', '${now}')`,
+          format: 'json'
+        });
+        console.log('[Auth] User mirrored to SQL:', email);
+      } catch (e) {
+        console.warn('[Auth] SQL insert failed (non-critical):', e);
+      }
     }
 
     const token = btoa(`${userId}:${Date.now()}`);
@@ -134,7 +164,7 @@ app.post('/api/auth/register', async (c: Context<{ Bindings: Env }>) => {
       user: { id: userId, email },
     });
   } catch (error: any) {
-    console.error('Register error:', error);
+    console.error('[Auth] Registration error:', error?.message || error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
@@ -148,31 +178,55 @@ app.post('/api/auth/login', async (c: Context<{ Bindings: Env }>) => {
       return c.json({ error: 'Email and password are required' }, 400);
     }
 
-    const { smartSQL } = await import('../services/raindropSmart');
-    
-    // Get user
-    const rows = await smartSQL.query('SELECT * FROM users WHERE email = ?', [email]);
-    const user = rows && rows.length > 0 ? rows[0] : null;
-    
+    console.log('[Auth] Login attempt for email:', email);
+
+    // Try SmartBuckets first (Primary)
+    let user = await smartBuckets.get('users', email);
+
+    // Fallback to SQL if not found in Buckets
     if (!user) {
+      console.log('[Auth] User not found in Buckets, checking SQL:', email);
+      const db = c.env?.MAIN_DB as any;
+      if (db) {
+        try {
+          const result = await db.executeQuery({
+            textQuery: `SELECT * FROM users WHERE email = '${email.replace(/'/g, "''")}'`,
+            format: 'json'
+          });
+          
+          if (result.results && result.results.length > 0) {
+            user = result.results[0];
+            console.log('[Auth] User found in SQL fallback');
+          }
+        } catch (e) {
+          console.warn('[Auth] SQL check failed:', e);
+        }
+      }
+    }
+
+    if (!user) {
+      console.log('[Auth] User not found:', email);
       return c.json({ error: 'Invalid credentials' }, 401);
     }
 
+    console.log('[Auth] User found:', JSON.stringify({ ...user, password_hash: '[REDACTED]' }));
     const userPassword = user.password_hash || user.password;
     const hashedPassword = btoa(password);
     
     if (userPassword !== hashedPassword) {
+      console.log('[Auth] Password mismatch for:', email);
       return c.json({ error: 'Invalid credentials' }, 401);
     }
 
     const token = btoa(`${user.id}:${Date.now()}`);
 
+    console.log('[Auth] Login successful for:', email);
     return c.json({
       token,
       user: { id: user.id, email: user.email },
     });
   } catch (error: any) {
-    console.error('Login error:', error);
+    console.error('[Auth] Login error:', error?.message || error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
@@ -187,23 +241,55 @@ app.get('/api/projects', async (c: Context<{ Bindings: Env }>) => {
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
   try {
-    const { smartSQL } = await import('../services/raindropSmart');
-    const rows = await smartSQL.query(
-      'SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC',
-      [userId]
-    );
+    let projects: any[] = [];
     
-    const projects = (rows || []).map((p: any) => ({
+    // Try SmartBuckets first
+    try {
+      const keys = await smartBuckets.list('projects', `${userId}/`);
+      if (keys && keys.length > 0) {
+        for (const key of keys) {
+          const p = await smartBuckets.get('projects', key);
+          if (p) projects.push(p);
+        }
+        // Sort by created_at DESC
+        projects.sort((a, b) => 
+          new Date(b.created_at || b.createdAt).getTime() - new Date(a.created_at || a.createdAt).getTime()
+        );
+        console.log(`[Projects] Found ${projects.length} projects in Buckets for user:`, userId);
+      }
+    } catch (e) {
+      console.warn('[Projects] Bucket list failed:', e);
+    }
+
+    // Fallback to SQL if empty
+    if (projects.length === 0) {
+      const db = c.env?.MAIN_DB as any;
+      if (db) {
+        try {
+          const result = await db.executeQuery({
+            query: `SELECT * FROM projects WHERE user_id = '${userId.replace(/'/g, "''")}' ORDER BY created_at DESC`
+          });
+
+          const rows = result?.rows || [];
+          if (rows.length > 0) {
+            projects = rows;
+            console.log(`[Projects] Found ${rows.length} projects in SQL for user:`, userId);
+          }
+        } catch (e) {
+          console.warn('[Projects] SQL list failed:', e);
+        }
+      }
+    }
+
+    return c.json({ projects: projects.map((p: any) => ({
       id: p.id,
       name: p.name,
       description: p.description,
       createdAt: p.created_at || p.createdAt,
       updatedAt: p.updated_at || p.updatedAt,
-    }));
-
-    return c.json({ projects });
+    })) });
   } catch (error: any) {
-    console.error('Get projects error:', error);
+    console.error('[Projects] Get projects error:', error?.message || error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
@@ -218,15 +304,33 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => {
   }
 
   try {
-    const { smartSQL } = await import('../services/raindropSmart');
-    const { calculateRiskScoreFromVultr } = await import('../services/vultrClient');
-    const { getProjectRiskScore } = await import('../services/riskLogic');
-    const { getLogsForProject } = await import('../routes/ingest');
+    let project = null;
 
-    const rows = await smartSQL.query('SELECT * FROM projects WHERE id = ?', [projectId]);
-    const project = rows && rows.length > 0 ? rows[0] : null;
+    // Try Buckets first
+    try {
+      project = await smartBuckets.get('projects', `${userId}/${projectId}`);
+    } catch (e) {
+      console.warn('[Projects] Bucket get failed:', e);
+    }
+
+    // Fallback to SQL
+    if (!project) {
+      const db = c.env?.MAIN_DB as any;
+      if (db) {
+        try {
+          const result = await db.executeQuery({
+            query: `SELECT * FROM projects WHERE id = '${projectId.replace(/'/g, "''")}'`
+          });
+          const rows = result?.rows || [];
+          project = rows && rows.length > 0 ? rows[0] : null;
+        } catch (e) {
+          console.warn('[Projects] SQL get failed:', e);
+        }
+      }
+    }
 
     if (!project) {
+      console.log('[Projects] Project not found:', projectId);
       return c.json({ error: 'Project not found' }, 404);
     }
 
@@ -234,17 +338,23 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => {
       return c.json({ error: 'Forbidden' }, 403);
     }
 
+    console.log('[Projects] Project found:', projectId);
+
     // Get risk score
+    const { calculateRiskScoreFromVultr } = await import('../services/vultrClient');
+    const { getProjectRiskScore } = await import('../services/riskLogic');
+    const { getLogsForProject } = await import('../routes/ingest');
+
     const projectLogs = await getLogsForProject(projectId);
     let riskScore;
     try {
       riskScore = await calculateRiskScoreFromVultr({ projectId, logs: projectLogs });
     } catch (error) {
-      console.warn('Vultr worker unavailable, using local calculation:', error);
+      console.warn('[Projects] Vultr worker unavailable, using local calculation');
       riskScore = getProjectRiskScore(projectLogs);
     }
 
-    return c.json({ 
+    return c.json({
       project: {
         id: project.id,
         name: project.name,
@@ -255,7 +365,7 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => {
       riskScore,
     });
   } catch (error: any) {
-    console.error('Get project error:', error);
+    console.error('[Projects] Get project error:', error?.message || error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
@@ -272,20 +382,37 @@ app.post('/api/projects', async (c: Context<{ Bindings: Env }>) => {
       return c.json({ error: 'Project name is required' }, 400);
     }
 
-    const { smartSQL } = await import('../services/raindropSmart');
     const projectId = `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date().toISOString();
+    
+    const projectData = {
+      id: projectId,
+      user_id: userId,
+      userId,
+      name,
+      description: description || '',
+      created_at: now,
+      updated_at: now
+    };
 
-    const result = await smartSQL.execute(
-      'INSERT INTO projects (id, user_id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [projectId, userId, name, description || '', now, now]
-    );
+    // Store in Buckets (Primary)
+    await smartBuckets.put('projects', `${userId}/${projectId}`, projectData);
+    console.log('[Projects] Project created in Buckets');
 
-    if (!result || result.affectedRows === 0) {
-      // Fallback handled in route file, assume success for now
+    // Store in SQL (Secondary)
+    const db = c.env?.MAIN_DB as any;
+    if (db) {
+      try {
+        await db.executeQuery({
+          query: `INSERT INTO projects (id, user_id, name, description, created_at, updated_at) VALUES ('${projectId}', '${userId.replace(/'/g, "''")}', '${name.replace(/'/g, "''")}', '${(description || '').replace(/'/g, "''")}', '${now}', '${now}')`
+        });
+        console.log('[Projects] Project mirrored to SQL');
+      } catch (e) {
+        console.warn('[Projects] SQL insert failed:', e);
+      }
     }
 
-    return c.json({ 
+    return c.json({
       project: {
         id: projectId,
         userId,
@@ -296,7 +423,7 @@ app.post('/api/projects', async (c: Context<{ Bindings: Env }>) => {
       }
     }, 201);
   } catch (error: any) {
-    console.error('Create project error:', error);
+    console.error('[Projects] Create project error:', error?.message || error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
@@ -311,9 +438,21 @@ app.put('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => {
   }
 
   try {
-    const { smartSQL } = await import('../services/raindropSmart');
-    const rows = await smartSQL.query('SELECT * FROM projects WHERE id = ?', [projectId]);
-    const project = rows && rows.length > 0 ? rows[0] : null;
+    const key = `${userId}/${projectId}`;
+    let project = await smartBuckets.get('projects', key);
+    
+    // Check SQL if not in bucket
+    if (!project) {
+      const db = c.env?.MAIN_DB as any;
+      if (db) {
+        try {
+          const rows = await db.executeQuery(`SELECT * FROM projects WHERE id = '${projectId.replace(/'/g, "''")}'`);
+          if (rows && rows.length > 0) project = rows[0];
+        } catch (e) {
+          console.warn('[Projects] SQL get failed:', e);
+        }
+      }
+    }
 
     if (!project) {
       return c.json({ error: 'Project not found' }, 404);
@@ -326,15 +465,34 @@ app.put('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => {
     const body = await c.req.json();
     const { name, description } = body;
 
-    await smartSQL.execute(
-      'UPDATE projects SET name = ?, description = ?, updated_at = ? WHERE id = ?',
-      [name || project.name, description !== undefined ? description : project.description, new Date().toISOString(), projectId]
-    );
+    const updatedName = name || project.name;
+    const updatedDesc = description !== undefined ? description : project.description;
+    const now = new Date().toISOString();
 
-    const updatedRows = await smartSQL.query('SELECT * FROM projects WHERE id = ?', [projectId]);
-    const updatedProject = updatedRows && updatedRows.length > 0 ? updatedRows[0] : project;
+    const updatedProject = {
+      ...project,
+      name: updatedName,
+      description: updatedDesc,
+      updated_at: now,
+      updatedAt: now
+    };
 
-    return c.json({ 
+    // Update Buckets (Primary)
+    await smartBuckets.put('projects', key, updatedProject);
+
+    // Update SQL (Secondary)
+    const db = c.env?.MAIN_DB as any;
+    if (db) {
+      try {
+        await db.executeQuery({
+          query: `UPDATE projects SET name = '${updatedName.replace(/'/g, "''")}', description = '${updatedDesc.replace(/'/g, "''")}', updated_at = '${now}' WHERE id = '${projectId.replace(/'/g, "''")}'`
+        });
+      } catch (e) {
+        console.warn('[Projects] SQL update failed:', e);
+      }
+    }
+
+    return c.json({
       project: {
         id: updatedProject.id,
         name: updatedProject.name,
@@ -344,7 +502,7 @@ app.put('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => {
       }
     });
   } catch (error: any) {
-    console.error('Update project error:', error);
+    console.error('[Projects] Update project error:', error?.message || error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
@@ -359,9 +517,24 @@ app.delete('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => 
   }
 
   try {
-    const { smartSQL } = await import('../services/raindropSmart');
-    const rows = await smartSQL.query('SELECT * FROM projects WHERE id = ?', [projectId]);
-    const project = rows && rows.length > 0 ? rows[0] : null;
+    const key = `${userId}/${projectId}`;
+    let project = await smartBuckets.get('projects', key);
+
+    // Check SQL if not in bucket
+    if (!project) {
+      const db = c.env?.MAIN_DB as any;
+      if (db) {
+        try {
+          const result = await db.executeQuery({
+            query: `SELECT * FROM projects WHERE id = '${projectId.replace(/'/g, "''")}'`
+          });
+          const rows = result?.rows || [];
+          if (rows && rows.length > 0) project = rows[0];
+        } catch (e) {
+          console.warn('[Projects] SQL get failed:', e);
+        }
+      }
+    }
 
     if (!project) {
       return c.json({ error: 'Project not found' }, 404);
@@ -371,11 +544,24 @@ app.delete('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => 
       return c.json({ error: 'Forbidden' }, 403);
     }
 
-    await smartSQL.execute('DELETE FROM projects WHERE id = ?', [projectId]);
+    // Delete from Buckets
+    await smartBuckets.delete('projects', key);
+
+    // Delete from SQL
+    const db = c.env?.MAIN_DB as any;
+    if (db) {
+      try {
+        await db.executeQuery({
+          query: `DELETE FROM projects WHERE id = '${projectId.replace(/'/g, "''")}'`
+        });
+      } catch (e) {
+        console.warn('[Projects] SQL delete failed:', e);
+      }
+    }
 
     return c.json({ message: 'Project deleted successfully' });
   } catch (error: any) {
-    console.error('Delete project error:', error);
+    console.error('[Projects] Delete project error:', error?.message || error);
     return c.json({ error: 'Internal server error' }, 500);
   }
 });
@@ -616,9 +802,97 @@ function shouldRegenerateForecast(forecast: any): boolean {
   return hoursSinceGeneration > 24;
 }
 
+// === Database Initialization ===
+async function initDatabase(db: any): Promise<boolean> {
+  try {
+    console.log('[CloudSage] Initializing database tables...');
+
+    // Create tables using SmartSQL executeQuery with textQuery
+    await db.executeQuery({
+      textQuery: `CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TEXT,
+        updated_at TEXT
+      )`,
+      format: 'json'
+    });
+
+    await db.executeQuery({
+      textQuery: `CREATE TABLE IF NOT EXISTS projects (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at TEXT,
+        updated_at TEXT
+      )`,
+      format: 'json'
+    });
+
+    await db.executeQuery({
+      textQuery: `CREATE TABLE IF NOT EXISTS risk_history (
+        id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        score INTEGER NOT NULL,
+        labels TEXT,
+        factors TEXT,
+        timestamp TEXT
+      )`,
+      format: 'json'
+    });
+
+    console.log('[CloudSage] ✓ Database tables created');
+    return true;
+  } catch (error: any) {
+    console.error('[CloudSage] Database initialization failed:', error?.message || error);
+    return false;
+  }
+}
+
 // === Service Handler ===
 export default class extends Service<Env> {
+  private dbInitialized = false;
+
   async fetch(request: Request, env: Env, ctx: any): Promise<Response> {
-    return app.fetch(request, env, ctx);
+    try {
+      console.log('[Service] fetch called');
+      console.log('[Service] env param exists:', !!env);
+      console.log('[Service] this.env exists:', !!(this as any).env);
+      console.log('[Service] typeof this:', typeof this);
+      console.log('[Service] this keys:', Object.keys(this).join(', '));
+
+      // Try to get env from this or parameter
+      const actualEnv = env || (this as any).env;
+      console.log('[Service] actualEnv exists:', !!actualEnv);
+      console.log('[Service] actualEnv type:', typeof actualEnv);
+
+      if (actualEnv) {
+        console.log('[Service] actualEnv keys:', Object.keys(actualEnv).join(', '));
+        console.log('[Service] actualEnv.MAIN_DB exists:', !!actualEnv.MAIN_DB);
+      }
+
+      // Initialize database on first request
+      if (!this.dbInitialized && actualEnv?.MAIN_DB) {
+        this.dbInitialized = true;
+        console.log('[CloudSage] Initializing database...');
+        await initDatabase(actualEnv.MAIN_DB).catch((error) => {
+          console.error('[CloudSage] Failed to initialize database:', error);
+        });
+      }
+
+      console.log('[Service] Calling app.fetch with actualEnv:', !!actualEnv);
+      // Pass context directly to Hono
+      const response = await app.fetch(request, actualEnv, ctx);
+      console.log('[Service] app.fetch returned, status:', response.status);
+      return response;
+    } catch (error) {
+      console.error('[CloudSage] Service fetch error:', error);
+      return new Response(JSON.stringify({ error: 'Internal server error' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
 }

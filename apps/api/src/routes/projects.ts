@@ -25,16 +25,24 @@ async function getProjectsFromDB(userId: string): Promise<any[]> {
       'SELECT * FROM projects WHERE user_id = ? ORDER BY created_at DESC',
       [userId]
     );
-    if (rows.length > 0) {
-      return rows;
-    }
+    console.log(`[Projects] Found ${rows.length} projects for user in SmartSQL:`, userId);
+    // Normalize field names from snake_case to camelCase
+    return rows.map(row => ({
+      id: row.id,
+      userId: row.user_id || row.userId,
+      name: row.name,
+      description: row.description,
+      createdAt: row.created_at || row.createdAt,
+      updatedAt: row.updated_at || row.updatedAt,
+    }));
   } catch (error) {
-    console.warn('SmartSQL query failed, using fallback:', error);
+    console.warn('[Projects] SmartSQL query failed, using fallback:', error);
+    // Fallback to in-memory storage
+    const fallbackProjects = Array.from(projects.values())
+      .filter(p => p.userId === userId);
+    console.log(`[Projects] Found ${fallbackProjects.length} projects for user in fallback:`, userId);
+    return fallbackProjects;
   }
-  
-  // Fallback to in-memory storage
-  return Array.from(projects.values())
-    .filter(p => p.userId === userId);
 }
 
 // Helper to get project by ID (tries SmartSQL first, falls back to memory)
@@ -45,14 +53,29 @@ async function getProjectFromDB(projectId: string): Promise<any | null> {
       [projectId]
     );
     if (rows.length > 0) {
-      return rows[0];
+      const row = rows[0];
+      console.log('[Projects] Project found in SmartSQL:', projectId);
+      // Normalize field names from snake_case to camelCase
+      return {
+        id: row.id,
+        userId: row.user_id || row.userId,
+        name: row.name,
+        description: row.description,
+        createdAt: row.created_at || row.createdAt,
+        updatedAt: row.updated_at || row.updatedAt,
+      };
     }
+    console.log('[Projects] Project not found in SmartSQL:', projectId);
+    return null;
   } catch (error) {
-    console.warn('SmartSQL query failed, using fallback:', error);
+    console.warn('[Projects] SmartSQL query failed, using fallback:', error);
+    // Fallback to in-memory storage
+    const project = projects.get(projectId) || null;
+    if (project) {
+      console.log('[Projects] Project found in fallback:', projectId);
+    }
+    return project;
   }
-  
-  // Fallback to in-memory storage
-  return projects.get(projectId) || null;
 }
 
 // Helper to create project (tries SmartSQL first, falls back to memory)
@@ -64,16 +87,18 @@ async function createProjectInDB(project: any): Promise<void> {
     );
     // Check if insert actually succeeded
     if (result && result.affectedRows > 0) {
+      console.log('[Projects] Project created in SmartSQL:', project.id);
       return; // Success, don't use fallback
     }
-    // If affectedRows is 0, SmartSQL didn't work, use fallback
-    console.warn('SmartSQL insert returned 0 affected rows, using fallback');
+    // If affectedRows is 0, something went wrong
+    console.warn('[Projects] SmartSQL insert returned 0 affected rows, using fallback');
+    throw new Error('Insert failed - 0 rows affected');
   } catch (error) {
-    console.warn('SmartSQL insert failed, using fallback:', error);
+    console.warn('[Projects] SmartSQL insert failed, using fallback:', error);
+    // Fallback to in-memory storage
+    projects.set(project.id, project);
+    console.log('[Projects] Project created in fallback storage:', project.id);
   }
-  
-  // Fallback to in-memory storage
-  projects.set(project.id, project);
 }
 
 // Helper to update project (tries SmartSQL first, falls back to memory)
@@ -173,7 +198,9 @@ export async function handleGetProject(req: IncomingMessage, res: ServerResponse
     return;
   }
 
-  if (project.userId !== userId) {
+  // Handle both camelCase and snake_case from database
+  const projectUserId = project.userId || project.user_id;
+  if (projectUserId !== userId) {
     sendError(res, 403, 'Forbidden');
     return;
   }
@@ -254,7 +281,9 @@ export async function handleUpdateProject(req: IncomingMessage, res: ServerRespo
     return;
   }
 
-  if (project.userId !== userId) {
+  // Handle both camelCase and snake_case from database
+  const projectUserId = project.userId || project.user_id;
+  if (projectUserId !== userId) {
     sendError(res, 403, 'Forbidden');
     return;
   }
@@ -300,7 +329,9 @@ export async function handleDeleteProject(req: IncomingMessage, res: ServerRespo
     return;
   }
 
-  if (project.userId !== userId) {
+  // Handle both camelCase and snake_case from database
+  const projectUserId = project.userId || project.user_id;
+  if (projectUserId !== userId) {
     sendError(res, 403, 'Forbidden');
     return;
   }

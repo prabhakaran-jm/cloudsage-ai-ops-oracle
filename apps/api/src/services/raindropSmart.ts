@@ -152,7 +152,7 @@ export const smartBuckets = {
   },
 };
 
-// SmartSQL wrapper
+// SmartSQL wrapper with improved error handling
 export const smartSQL = {
   /**
    * Execute a SQL query
@@ -166,9 +166,18 @@ export const smartSQL = {
           params,
         },
       });
-      return result?.rows || [];
-    } catch {
-      return [];
+
+      if (result === null) {
+        console.warn('[SmartSQL] Query failed - MCP unavailable:', sql.substring(0, 50));
+        throw new Error('SmartSQL unavailable');
+      }
+
+      const rows = result?.rows || [];
+      console.log(`[SmartSQL] Query returned ${rows.length} rows:`, sql.substring(0, 50));
+      return rows;
+    } catch (error: any) {
+      console.error('[SmartSQL] Query error:', error.message);
+      throw error;
     }
   },
 
@@ -184,9 +193,18 @@ export const smartSQL = {
           params,
         },
       });
+
+      if (result === null) {
+        console.warn('[SmartSQL] Execute failed - MCP unavailable:', sql.substring(0, 50));
+        throw new Error('SmartSQL unavailable');
+      }
+
+      const affectedRows = result?.affectedRows || 0;
+      console.log(`[SmartSQL] Execute affected ${affectedRows} rows:`, sql.substring(0, 50));
       return result || { affectedRows: 0 };
-    } catch {
-      return { affectedRows: 0 };
+    } catch (error: any) {
+      console.error('[SmartSQL] Execute error:', error.message);
+      throw error;
     }
   },
 
@@ -195,15 +213,23 @@ export const smartSQL = {
    */
   async transaction(queries: Array<{ sql: string; params: any[] }>): Promise<boolean> {
     try {
-      await mcpRequest('tools/call', {
+      const result = await mcpRequest('tools/call', {
         name: 'smartSQL.transaction',
         arguments: {
           queries,
         },
       });
+
+      if (result === null) {
+        console.warn('[SmartSQL] Transaction failed - MCP unavailable');
+        throw new Error('SmartSQL unavailable');
+      }
+
+      console.log(`[SmartSQL] Transaction completed: ${queries.length} queries`);
       return true;
-    } catch {
-      return false;
+    } catch (error: any) {
+      console.error('[SmartSQL] Transaction error:', error.message);
+      throw error;
     }
   },
 };
