@@ -19,5 +19,5 @@
   package = "@netlify/plugin-nextjs"
 
 # Environment variables should be set in Netlify Dashboard:
-# NEXT_PUBLIC_API_URL = https://cloudsage-api.01k844rvnc9e5n807arvr4wn0t.lmapp.run/api
+# NEXT_PUBLIC_API_URL = https://cloudsage-api.01kbv4q1d3d0twvhykd210v58w.lmapp.run/api
 
