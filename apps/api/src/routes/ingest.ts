@@ -317,7 +317,7 @@ export async function getRiskHistory(projectId: string, limit = 50) {
   try {
     // Try SmartSQL first
     const rows = await smartSQL.query(
-      'SELECT score, labels, timestamp FROM risk_history WHERE project_id = ? ORDER BY timestamp DESC LIMIT ?',
+      'SELECT score, labels, factors, timestamp FROM risk_history WHERE project_id = ? ORDER BY timestamp DESC LIMIT ?',
       [projectId, limit]
     );
     
@@ -325,6 +325,7 @@ export async function getRiskHistory(projectId: string, limit = 50) {
       return rows.map(row => ({
         score: row.score,
         labels: typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels,
+        factors: typeof row.factors === 'string' ? JSON.parse(row.factors) : row.factors,
         timestamp: row.timestamp,
       }));
     }

@@ -212,7 +212,7 @@ export async function handleGetProject(req: IncomingMessage, res: ServerResponse
     score: riskHistory[0].score,
     labels: riskHistory[0].labels,
     timestamp: riskHistory[0].timestamp,
-    factors: {},
+    factors: riskHistory[0].factors || {},
   } : null;
 
   sendSuccess(res, { 
