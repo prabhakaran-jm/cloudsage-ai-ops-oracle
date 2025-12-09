@@ -118,9 +118,31 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
     }
 
     // Normalize logs to array format
-    const logEntries = Array.isArray(logContent) 
-      ? logContent 
-      : logContent.split('\n').filter(line => line.trim());
+    let logEntries: string[];
+    if (Array.isArray(logContent)) {
+      logEntries = logContent;
+    } else {
+      // Try splitting by newlines first
+      logEntries = logContent.split('\n').filter(line => line.trim());
+      
+      // If we only got 1 entry, try splitting by timestamp pattern (YYYY-MM-DD HH:MM:SS)
+      if (logEntries.length === 1 && logEntries[0].length > 100) {
+        const timestampPattern = /(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/g;
+        const matches = logEntries[0].match(timestampPattern);
+        
+        if (matches && matches.length > 1) {
+          // Split by timestamp pattern
+          const parts = logEntries[0].split(timestampPattern).filter(p => p.trim());
+          logEntries = [];
+          for (let i = 0; i < parts.length; i += 2) {
+            if (parts[i] && parts[i + 1]) {
+              logEntries.push(parts[i] + parts[i + 1]);
+            }
+          }
+          console.log(`[Ingest] Split concatenated logs into ${logEntries.length} entries`);
+        }
+      }
+    }
 
     const timestamp = new Date().toISOString();
 
@@ -151,14 +173,18 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
       }));
 
       let riskScore;
+      console.log(`[Ingest] Calculating risk score for ${projectLogsForScoring.length} logs`);
       try {
+        console.log('[Ingest] Trying Vultr worker...');
         riskScore = await calculateRiskScoreFromVultr({
           projectId,
           logs: projectLogsForScoring,
         });
+        console.log('[Ingest] Vultr worker returned:', riskScore);
       } catch (error) {
-        console.warn('Vultr worker unavailable, using local calculation:', error);
+        console.warn('[Ingest] Vultr worker unavailable, using local calculation:', error);
         riskScore = getProjectRiskScore(projectLogsForScoring);
+        console.log('[Ingest] Local calculation returned:', riskScore);
       }
 
       // Store risk score in history
