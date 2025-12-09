@@ -23,6 +23,7 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState<Project | null>(null);
   const [riskScore, setRiskScore] = useState<RiskScore | null>(null);
+  const [riskScoreTimestamp, setRiskScoreTimestamp] = useState<string | null>(null);
   const [forecast, setForecast] = useState<Forecast | null>(null);
   const [riskHistory, setRiskHistory] = useState<RiskHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,8 +53,14 @@ export default function ProjectDetailPage() {
       setName(data.project.name);
       setDescription(data.project.description || '');
       if (data.riskScore) {
-        console.log('[ProjectDetail] Setting risk score:', data.riskScore);
-        setRiskScore(data.riskScore);
+        // Only update if this risk score is newer than the current one (prevent race condition)
+        if (!riskScoreTimestamp || new Date(data.riskScore.timestamp) >= new Date(riskScoreTimestamp)) {
+          console.log('[ProjectDetail] Setting risk score from project load:', data.riskScore);
+          setRiskScore(data.riskScore);
+          setRiskScoreTimestamp(data.riskScore.timestamp);
+        } else {
+          console.log('[ProjectDetail] Ignoring stale risk score from project load. Current:', riskScoreTimestamp, 'Received:', data.riskScore.timestamp);
+        }
       } else {
         console.log('[ProjectDetail] No risk score in response');
       }
@@ -93,15 +100,16 @@ export default function ProjectDetailPage() {
 
   const handleRefresh = (newRiskScore?: RiskScore) => {
     console.log('[ProjectDetail] Refresh triggered after log ingestion');
-    
+
     if (newRiskScore) {
       console.log('[ProjectDetail] Using immediate risk score from ingestion response:', newRiskScore);
       setRiskScore(newRiskScore);
+      setRiskScoreTimestamp(newRiskScore.timestamp);
     } else {
       // Only reload project (to get risk score) if we didn't get it directly
       loadProject();
     }
-    
+
     loadForecast();
     loadRiskHistory();
   };
