@@ -208,12 +208,14 @@ export async function handleGetProject(req: IncomingMessage, res: ServerResponse
   // Get the latest risk score from history
   const { getRiskHistory } = await import('../routes/ingest');
   const riskHistory = await getRiskHistory(projectId, 1);
+  console.log(`[handleGetProject] Risk history entries: ${riskHistory.length}`);
   const riskScore = riskHistory.length > 0 ? {
     score: riskHistory[0].score,
     labels: riskHistory[0].labels,
     timestamp: riskHistory[0].timestamp,
     factors: riskHistory[0].factors || {},
   } : null;
+  console.log('[handleGetProject] Returning risk score:', riskScore);
 
   sendSuccess(res, { 
     project,

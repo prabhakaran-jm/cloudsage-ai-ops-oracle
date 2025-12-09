@@ -44,14 +44,21 @@ export default function ProjectDetailPage() {
   const loadProject = async () => {
     try {
       setLoading(true);
+      console.log('[ProjectDetail] Loading project:', projectId);
       const data = await apiClient.getProject(projectId) as { project: Project; riskScore?: RiskScore };
+      console.log('[ProjectDetail] Received data:', data);
+      console.log('[ProjectDetail] Risk score from API:', data.riskScore);
       setProject(data.project);
       setName(data.project.name);
       setDescription(data.project.description || '');
       if (data.riskScore) {
+        console.log('[ProjectDetail] Setting risk score:', data.riskScore);
         setRiskScore(data.riskScore);
+      } else {
+        console.log('[ProjectDetail] No risk score in response');
       }
     } catch (err: any) {
+      console.error('[ProjectDetail] Error loading project:', err);
       if (err.message.includes('Unauthorized')) {
         router.push('/login');
       } else {
@@ -84,8 +91,17 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleRefresh = () => {
-    loadProject();
+  const handleRefresh = (newRiskScore?: RiskScore) => {
+    console.log('[ProjectDetail] Refresh triggered after log ingestion');
+    
+    if (newRiskScore) {
+      console.log('[ProjectDetail] Using immediate risk score from ingestion response:', newRiskScore);
+      setRiskScore(newRiskScore);
+    } else {
+      // Only reload project (to get risk score) if we didn't get it directly
+      loadProject();
+    }
+    
     loadForecast();
     loadRiskHistory();
   };

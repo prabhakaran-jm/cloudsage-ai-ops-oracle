@@ -321,19 +321,24 @@ export async function getRiskHistory(projectId: string, limit = 50) {
       [projectId, limit]
     );
     
+    console.log(`[getRiskHistory] Found ${rows.length} entries for project ${projectId}`);
+    
     if (rows.length > 0) {
-      return rows.map(row => ({
+      const mapped = rows.map(row => ({
         score: row.score,
         labels: typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels,
         factors: typeof row.factors === 'string' ? JSON.parse(row.factors) : row.factors,
         timestamp: row.timestamp,
       }));
+      console.log('[getRiskHistory] Latest entry:', mapped[0]);
+      return mapped;
     }
   } catch (error) {
-    console.warn('SmartSQL query failed, using fallback:', error);
+    console.warn('[getRiskHistory] SmartSQL query failed, using fallback:', error);
   }
   
   // Fallback to in-memory storage
   const history = riskHistory.get(projectId) || [];
+  console.log(`[getRiskHistory] Using fallback, found ${history.length} entries`);
   return history.slice(-limit).reverse(); // Most recent first
 }

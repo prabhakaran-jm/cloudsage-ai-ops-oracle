@@ -111,7 +111,7 @@ export const apiClient = {
 
   // Log ingestion
   async ingestLogs(projectId: string, logs: string | string[], metadata?: any) {
-    return request<{ message: string; count: number; projectId: string; timestamp: string }>(
+    return request<{ message: string; count: number; projectId: string; timestamp: string; riskScore?: RiskScore }>(
       `/ingest/${projectId}`,
       {
         method: 'POST',

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { apiClient } from '@/lib/apiClient';
+import { apiClient, RiskScore } from '@/lib/apiClient';
 
 interface LogIngestProps {
   projectId: string;
-  onIngested?: () => void;
+  onIngested?: (riskScore?: RiskScore) => void;
 }
 
 export default function LogIngest({ projectId, onIngested }: LogIngestProps) {
@@ -30,7 +30,7 @@ export default function LogIngest({ projectId, onIngested }: LogIngestProps) {
       setSuccess(`Successfully ingested ${result.count} log entries`);
       setLogContent('');
       if (onIngested) {
-        onIngested();
+        onIngested(result.riskScore);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to ingest logs');
@@ -52,7 +52,7 @@ export default function LogIngest({ projectId, onIngested }: LogIngestProps) {
       const result = await apiClient.ingestLogs(projectId, text);
       setSuccess(`Successfully ingested ${result.count} log entries from file`);
       if (onIngested) {
-        onIngested();
+        onIngested(result.riskScore);
       }
     } catch (err: any) {
       setError(err.message || 'Failed to ingest logs from file');
