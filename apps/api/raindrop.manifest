@@ -89,7 +89,8 @@ application "cloudsage_api" {
   // sql_database "app-db" {}
 
   // SmartSQL for AI-powered natural language queries
-  smartsql "main-db" {}
+  // Temporarily disabled due to foreign key constraint issues
+  // smartsql "main-db" {}
 
   // === Key-Value Storage ===
   // KV cache for fast key-value operations
@@ -99,6 +100,8 @@ application "cloudsage_api" {
   // SmartBucket for document storage with AI-powered search
   smartbucket "logs" {}
   smartbucket "forecasts" {}
+  smartbucket "users" {}
+  smartbucket "projects" {}
 
   // SmartMemory for semantic memory and context management
   smartmemory "user-patterns" {}

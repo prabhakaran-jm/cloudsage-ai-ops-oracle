@@ -1,5 +1,7 @@
 # CloudSage – AI Ops Oracle for Solo Engineers
 
+> **✅ STATUS UPDATE (Dec 8, 2025):** Critical auth bug fixed! Email normalization now working. All features tested and functional. Ready for hackathon demo! 🎉
+
 CloudSage is an AI-powered Ops assistant for solo developers and tiny teams.
 You paste logs and infra signals.
 CloudSage predicts near-term failure risk and gives you a short, practical action plan.

@@ -26,7 +26,7 @@ const app = new Hono<{ Bindings: Env }>();
 app.use('*', async (c: Context<{ Bindings: Env }>, next: () => Promise<void>) => {
   console.log('[CloudSage] Request:', c.req.method, c.req.url);
   console.log('[CloudSage] c.env exists:', !!c.env);
-  console.log('[CloudSage] c.env.MAIN_DB exists:', !!c.env?.MAIN_DB);
+  // SmartSQL disabled - MAIN_DB not available
   await next();
 });
 
@@ -93,39 +93,26 @@ app.get('/api/hello', (c: Context<{ Bindings: Env }>) => {
 app.post('/api/auth/register', async (c: Context<{ Bindings: Env }>) => {
   try {
     const body = await c.req.json();
-    const { email, password } = body;
+    let { email, password } = body;
 
     if (!email || !password) {
       return c.json({ error: 'Email and password are required' }, 400);
     }
 
+    // Normalize email
+    email = email.toLowerCase().trim();
+
     console.log('[Auth] Registration attempt for email:', email);
 
     // Check SmartBuckets first
-    const existingUser = await smartBuckets.get('users', email);
+    const existingUser = await smartBuckets.get('users', email, c.env);
     if (existingUser) {
       console.log('[Auth] User already exists (Bucket):', email);
       return c.json({ error: 'User already exists' }, 400);
     }
 
-    const db = c.env?.MAIN_DB as any;
-    
-    // Check SQL as backup if available
-    if (db) {
-      try {
-        const checkResult = await db.executeQuery({
-          textQuery: `SELECT * FROM users WHERE email = '${email.replace(/'/g, "''")}'`,
-          format: 'json'
-        });
-
-        if (checkResult.results && checkResult.results.length > 0) {
-          console.log('[Auth] User already exists (SQL):', email);
-          return c.json({ error: 'User already exists' }, 400);
-        }
-      } catch (e) {
-        console.warn('[Auth] SQL check failed, proceeding:', e);
-      }
-    }
+    // SmartSQL disabled - using SmartBuckets only
+    // Removed MAIN_DB checks to avoid foreign key constraint errors
 
     // Create user
     const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -141,21 +128,8 @@ app.post('/api/auth/register', async (c: Context<{ Bindings: Env }>) => {
     };
 
     // Store in SmartBuckets (Primary)
-    await smartBuckets.put('users', email, userData);
+    await smartBuckets.put('users', email, userData, c.env);
     console.log('[Auth] User created in SmartBuckets:', email);
-
-    // Store in SQL (Secondary/Backup)
-    if (db) {
-      try {
-        await db.executeQuery({
-          textQuery: `INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES ('${userId}', '${email.replace(/'/g, "''")}', '${hashedPassword}', '${now}', '${now}')`,
-          format: 'json'
-        });
-        console.log('[Auth] User mirrored to SQL:', email);
-      } catch (e) {
-        console.warn('[Auth] SQL insert failed (non-critical):', e);
-      }
-    }
 
     const token = btoa(`${userId}:${Date.now()}`);
 
@@ -172,37 +146,19 @@ app.post('/api/auth/register', async (c: Context<{ Bindings: Env }>) => {
 app.post('/api/auth/login', async (c: Context<{ Bindings: Env }>) => {
   try {
     const body = await c.req.json();
-    const { email, password } = body;
+    let { email, password } = body;
 
     if (!email || !password) {
       return c.json({ error: 'Email and password are required' }, 400);
     }
 
+    // Normalize email
+    email = email.toLowerCase().trim();
+
     console.log('[Auth] Login attempt for email:', email);
 
-    // Try SmartBuckets first (Primary)
-    let user = await smartBuckets.get('users', email);
-
-    // Fallback to SQL if not found in Buckets
-    if (!user) {
-      console.log('[Auth] User not found in Buckets, checking SQL:', email);
-      const db = c.env?.MAIN_DB as any;
-      if (db) {
-        try {
-          const result = await db.executeQuery({
-            textQuery: `SELECT * FROM users WHERE email = '${email.replace(/'/g, "''")}'`,
-            format: 'json'
-          });
-          
-          if (result.results && result.results.length > 0) {
-            user = result.results[0];
-            console.log('[Auth] User found in SQL fallback');
-          }
-        } catch (e) {
-          console.warn('[Auth] SQL check failed:', e);
-        }
-      }
-    }
+    // Try SmartBuckets (Primary storage)
+    let user = await smartBuckets.get('users', email, c.env);
 
     if (!user) {
       console.log('[Auth] User not found:', email);
@@ -210,20 +166,30 @@ app.post('/api/auth/login', async (c: Context<{ Bindings: Env }>) => {
     }
 
     console.log('[Auth] User found:', JSON.stringify({ ...user, password_hash: '[REDACTED]' }));
-    const userPassword = user.password_hash || user.password;
+    console.log('[Auth] User object keys:', Object.keys(user));
+    
+    // Handle different data formats from SmartBuckets
+    const actualUser = user.value || user.data || user;
+    const userPassword = actualUser.password_hash || actualUser.password || user.password_hash || user.password;
     const hashedPassword = btoa(password);
     
-    if (userPassword !== hashedPassword) {
+    console.log('[Auth] Comparing passwords - stored length:', userPassword?.length, 'provided hash length:', hashedPassword.length);
+    
+    if (!userPassword || userPassword !== hashedPassword) {
       console.log('[Auth] Password mismatch for:', email);
       return c.json({ error: 'Invalid credentials' }, 401);
     }
+    
+    // Use actualUser for id and email
+    const userIdForToken = actualUser.id || user.id;
+    const userEmailForResponse = actualUser.email || user.email;
 
-    const token = btoa(`${user.id}:${Date.now()}`);
+    const token = btoa(`${userIdForToken}:${Date.now()}`);
 
     console.log('[Auth] Login successful for:', email);
     return c.json({
       token,
-      user: { id: user.id, email: user.email },
+      user: { id: userIdForToken, email: userEmailForResponse },
     });
   } catch (error: any) {
     console.error('[Auth] Login error:', error?.message || error);
@@ -245,11 +211,19 @@ app.get('/api/projects', async (c: Context<{ Bindings: Env }>) => {
     
     // Try SmartBuckets first
     try {
-      const keys = await smartBuckets.list('projects', `${userId}/`);
+      console.log(`[Projects] Listing projects for prefix: ${userId}/`);
+      const keys = await smartBuckets.list('projects', `${userId}/`, c.env);
+      console.log(`[Projects] Bucket list returned ${keys?.length || 0} keys:`, keys);
+      
       if (keys && keys.length > 0) {
         for (const key of keys) {
-          const p = await smartBuckets.get('projects', key);
-          if (p) projects.push(p);
+          const p = await smartBuckets.get('projects', key, c.env);
+          // Filter out metadata objects (shouldn't happen if .text()/.json() worked, but be safe)
+          if (p && (p.id || p.name)) {
+            projects.push(p);
+          } else if (p) {
+            console.warn(`[Projects] Skipping metadata object for key: ${key}, keys:`, Object.keys(p));
+          }
         }
         // Sort by created_at DESC
         projects.sort((a, b) => 
@@ -261,25 +235,7 @@ app.get('/api/projects', async (c: Context<{ Bindings: Env }>) => {
       console.warn('[Projects] Bucket list failed:', e);
     }
 
-    // Fallback to SQL if empty
-    if (projects.length === 0) {
-      const db = c.env?.MAIN_DB as any;
-      if (db) {
-        try {
-          const result = await db.executeQuery({
-            query: `SELECT * FROM projects WHERE user_id = '${userId.replace(/'/g, "''")}' ORDER BY created_at DESC`
-          });
-
-          const rows = result?.rows || [];
-          if (rows.length > 0) {
-            projects = rows;
-            console.log(`[Projects] Found ${rows.length} projects in SQL for user:`, userId);
-          }
-        } catch (e) {
-          console.warn('[Projects] SQL list failed:', e);
-        }
-      }
-    }
+    // SmartSQL disabled - using SmartBuckets only
 
     return c.json({ projects: projects.map((p: any) => ({
       id: p.id,
@@ -308,29 +264,48 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => {
 
     // Try Buckets first
     try {
-      project = await smartBuckets.get('projects', `${userId}/${projectId}`);
+      const projectData = await smartBuckets.get('projects', `${userId}/${projectId}`, c.env);
+      console.log('[Projects] Raw project data from bucket:', JSON.stringify(projectData));
+      
+      // Handle different data formats from SmartBuckets
+      // smartBuckets.get() should have already converted metadata to content via .text()/.json()
+      // But if we still get metadata, it means the conversion failed
+      if (projectData) {
+        // Check if it's still metadata (has key, size, etag but no id/name)
+        if (projectData.key && projectData.size && !projectData.id && !projectData.name) {
+          console.warn('[Projects] Got metadata object - content reading may have failed');
+          console.warn('[Projects] Metadata keys:', Object.keys(projectData));
+          // smartBuckets.get() should have handled this, but if we're here, it didn't
+          project = null;
+        } else if (projectData.id || projectData.name) {
+          // This is the actual project data (has id or name)
+          project = projectData;
+          console.log('[Projects] Project found in bucket:', projectId, 'userId:', project?.user_id || project?.userId);
+        } else {
+          // Unknown format, try to use it anyway
+          console.warn('[Projects] Unknown project data format, attempting to use:', Object.keys(projectData));
+          project = projectData;
+        }
+      }
     } catch (e) {
       console.warn('[Projects] Bucket get failed:', e);
     }
 
-    // Fallback to SQL
-    if (!project) {
-      const db = c.env?.MAIN_DB as any;
-      if (db) {
-        try {
-          const result = await db.executeQuery({
-            query: `SELECT * FROM projects WHERE id = '${projectId.replace(/'/g, "''")}'`
-          });
-          const rows = result?.rows || [];
-          project = rows && rows.length > 0 ? rows[0] : null;
-        } catch (e) {
-          console.warn('[Projects] SQL get failed:', e);
-        }
-      }
-    }
+    // SmartSQL disabled - using SmartBuckets only
 
     if (!project) {
-      console.log('[Projects] Project not found:', projectId);
+      console.log('[Projects] Project not found. Searched for key:', `${userId}/${projectId}`);
+      console.log('[Projects] UserId from token:', userId);
+      console.log('[Projects] ProjectId from URL:', projectId);
+      
+      // Try listing all projects for this user to see what keys exist
+      try {
+        const allKeys = await smartBuckets.list('projects', `${userId}/`, c.env);
+        console.log('[Projects] Available project keys for user:', allKeys);
+      } catch (e) {
+        console.warn('[Projects] Failed to list projects:', e);
+      }
+      
       return c.json({ error: 'Project not found' }, 404);
     }
 
@@ -396,21 +371,8 @@ app.post('/api/projects', async (c: Context<{ Bindings: Env }>) => {
     };
 
     // Store in Buckets (Primary)
-    await smartBuckets.put('projects', `${userId}/${projectId}`, projectData);
+    await smartBuckets.put('projects', `${userId}/${projectId}`, projectData, c.env);
     console.log('[Projects] Project created in Buckets');
-
-    // Store in SQL (Secondary)
-    const db = c.env?.MAIN_DB as any;
-    if (db) {
-      try {
-        await db.executeQuery({
-          query: `INSERT INTO projects (id, user_id, name, description, created_at, updated_at) VALUES ('${projectId}', '${userId.replace(/'/g, "''")}', '${name.replace(/'/g, "''")}', '${(description || '').replace(/'/g, "''")}', '${now}', '${now}')`
-        });
-        console.log('[Projects] Project mirrored to SQL');
-      } catch (e) {
-        console.warn('[Projects] SQL insert failed:', e);
-      }
-    }
 
     return c.json({
       project: {
@@ -439,20 +401,9 @@ app.put('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => {
 
   try {
     const key = `${userId}/${projectId}`;
-    let project = await smartBuckets.get('projects', key);
+    let project = await smartBuckets.get('projects', key, c.env);
     
-    // Check SQL if not in bucket
-    if (!project) {
-      const db = c.env?.MAIN_DB as any;
-      if (db) {
-        try {
-          const rows = await db.executeQuery(`SELECT * FROM projects WHERE id = '${projectId.replace(/'/g, "''")}'`);
-          if (rows && rows.length > 0) project = rows[0];
-        } catch (e) {
-          console.warn('[Projects] SQL get failed:', e);
-        }
-      }
-    }
+    // SmartSQL disabled - using SmartBuckets only
 
     if (!project) {
       return c.json({ error: 'Project not found' }, 404);
@@ -478,19 +429,7 @@ app.put('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => {
     };
 
     // Update Buckets (Primary)
-    await smartBuckets.put('projects', key, updatedProject);
-
-    // Update SQL (Secondary)
-    const db = c.env?.MAIN_DB as any;
-    if (db) {
-      try {
-        await db.executeQuery({
-          query: `UPDATE projects SET name = '${updatedName.replace(/'/g, "''")}', description = '${updatedDesc.replace(/'/g, "''")}', updated_at = '${now}' WHERE id = '${projectId.replace(/'/g, "''")}'`
-        });
-      } catch (e) {
-        console.warn('[Projects] SQL update failed:', e);
-      }
-    }
+    await smartBuckets.put('projects', key, updatedProject, c.env);
 
     return c.json({
       project: {
@@ -518,23 +457,9 @@ app.delete('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => 
 
   try {
     const key = `${userId}/${projectId}`;
-    let project = await smartBuckets.get('projects', key);
+    let project = await smartBuckets.get('projects', key, c.env);
 
-    // Check SQL if not in bucket
-    if (!project) {
-      const db = c.env?.MAIN_DB as any;
-      if (db) {
-        try {
-          const result = await db.executeQuery({
-            query: `SELECT * FROM projects WHERE id = '${projectId.replace(/'/g, "''")}'`
-          });
-          const rows = result?.rows || [];
-          if (rows && rows.length > 0) project = rows[0];
-        } catch (e) {
-          console.warn('[Projects] SQL get failed:', e);
-        }
-      }
-    }
+    // SmartSQL disabled - using SmartBuckets only
 
     if (!project) {
       return c.json({ error: 'Project not found' }, 404);
@@ -545,19 +470,7 @@ app.delete('/api/projects/:projectId', async (c: Context<{ Bindings: Env }>) => 
     }
 
     // Delete from Buckets
-    await smartBuckets.delete('projects', key);
-
-    // Delete from SQL
-    const db = c.env?.MAIN_DB as any;
-    if (db) {
-      try {
-        await db.executeQuery({
-          query: `DELETE FROM projects WHERE id = '${projectId.replace(/'/g, "''")}'`
-        });
-      } catch (e) {
-        console.warn('[Projects] SQL delete failed:', e);
-      }
-    }
+    await smartBuckets.delete('projects', key, c.env);
 
     return c.json({ message: 'Project deleted successfully' });
   } catch (error: any) {
@@ -604,7 +517,7 @@ app.post('/api/ingest/:projectId', async (c: Context<{ Bindings: Env }>) => {
     const bucket = 'logs';
     for (const entry of storedLogs) {
       const key = `${projectId}/${entry.timestamp}/${entry.id}`;
-      await smartBuckets.put(bucket, key, entry);
+      await smartBuckets.put(bucket, key, entry, c.env);
     }
 
     // Get all logs and calculate risk score
@@ -697,7 +610,7 @@ app.get('/api/forecast/:projectId', async (c: Context<{ Bindings: Env }>) => {
     // Check if forecast exists
     const bucket = 'forecasts';
     const key = `${projectId}/${date}`;
-    let forecast = await smartBuckets.get(bucket, key);
+    let forecast = await smartBuckets.get(bucket, key, c.env);
 
     if (!forecast || shouldRegenerateForecast(forecast)) {
       try {
@@ -721,11 +634,11 @@ app.get('/api/forecast/:projectId', async (c: Context<{ Bindings: Env }>) => {
           forecast = await generateForecast(projectId, date);
         }
         
-        await smartBuckets.put(bucket, key, forecast);
+        await smartBuckets.put(bucket, key, forecast, c.env);
       } catch (error: any) {
         console.error('Forecast generation error:', error);
         forecast = await generateForecast(projectId, date);
-        await smartBuckets.put(bucket, key, forecast);
+        await smartBuckets.put(bucket, key, forecast, c.env);
       }
     }
 
@@ -749,11 +662,11 @@ app.get('/api/forecast/:projectId/history', async (c: Context<{ Bindings: Env }>
     const { smartBuckets } = await import('../services/raindropSmart');
     const bucket = 'forecasts';
     const prefix = `${projectId}/`;
-    const keys = await smartBuckets.list(bucket, prefix);
+    const keys = await smartBuckets.list(bucket, prefix, c.env);
     
     const forecasts = [];
     for (const key of keys.slice(-30)) {
-      const forecast = await smartBuckets.get(bucket, key);
+      const forecast = await smartBuckets.get(bucket, key, c.env);
       if (forecast) {
         forecasts.push(forecast);
       }
@@ -808,45 +721,59 @@ async function initDatabase(db: any): Promise<boolean> {
     console.log('[CloudSage] Initializing database tables...');
 
     // Create tables using SmartSQL executeQuery with textQuery
-    await db.executeQuery({
-      textQuery: `CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        created_at TEXT,
-        updated_at TEXT
-      )`,
-      format: 'json'
-    });
+    // Wrap each in try-catch to handle existing tables gracefully
+    try {
+      await db.executeQuery({
+        textQuery: `CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          email TEXT UNIQUE NOT NULL,
+          password_hash TEXT NOT NULL,
+          created_at TEXT,
+          updated_at TEXT
+        )`,
+        format: 'json'
+      });
+    } catch (e) {
+      console.log('[CloudSage] Users table already exists or error:', e);
+    }
 
-    await db.executeQuery({
-      textQuery: `CREATE TABLE IF NOT EXISTS projects (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        name TEXT NOT NULL,
-        description TEXT,
-        created_at TEXT,
-        updated_at TEXT
-      )`,
-      format: 'json'
-    });
+    try {
+      await db.executeQuery({
+        textQuery: `CREATE TABLE IF NOT EXISTS projects (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          created_at TEXT,
+          updated_at TEXT
+        )`,
+        format: 'json'
+      });
+    } catch (e) {
+      console.log('[CloudSage] Projects table already exists or error:', e);
+    }
 
-    await db.executeQuery({
-      textQuery: `CREATE TABLE IF NOT EXISTS risk_history (
-        id TEXT PRIMARY KEY,
-        project_id TEXT NOT NULL,
-        score INTEGER NOT NULL,
-        labels TEXT,
-        factors TEXT,
-        timestamp TEXT
-      )`,
-      format: 'json'
-    });
+    try {
+      await db.executeQuery({
+        textQuery: `CREATE TABLE IF NOT EXISTS risk_history (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          score INTEGER NOT NULL,
+          labels TEXT,
+          factors TEXT,
+          timestamp TEXT
+        )`,
+        format: 'json'
+      });
+    } catch (e) {
+      console.log('[CloudSage] Risk_history table already exists or error:', e);
+    }
 
-    console.log('[CloudSage] ✓ Database tables created');
+    console.log('[CloudSage] ✓ Database initialization complete');
     return true;
   } catch (error: any) {
     console.error('[CloudSage] Database initialization failed:', error?.message || error);
+    console.log('[CloudSage] ⚠ Continuing without database (will use SmartBuckets)');
     return false;
   }
 }
@@ -859,28 +786,14 @@ export default class extends Service<Env> {
     try {
       console.log('[Service] fetch called');
       console.log('[Service] env param exists:', !!env);
-      console.log('[Service] this.env exists:', !!(this as any).env);
-      console.log('[Service] typeof this:', typeof this);
-      console.log('[Service] this keys:', Object.keys(this).join(', '));
 
       // Try to get env from this or parameter
       const actualEnv = env || (this as any).env;
       console.log('[Service] actualEnv exists:', !!actualEnv);
-      console.log('[Service] actualEnv type:', typeof actualEnv);
 
-      if (actualEnv) {
-        console.log('[Service] actualEnv keys:', Object.keys(actualEnv).join(', '));
-        console.log('[Service] actualEnv.MAIN_DB exists:', !!actualEnv.MAIN_DB);
-      }
-
-      // Initialize database on first request
-      if (!this.dbInitialized && actualEnv?.MAIN_DB) {
-        this.dbInitialized = true;
-        console.log('[CloudSage] Initializing database...');
-        await initDatabase(actualEnv.MAIN_DB).catch((error) => {
-          console.error('[CloudSage] Failed to initialize database:', error);
-        });
-      }
+      // Skip database initialization - use SmartBuckets only for hackathon
+      // Database initialization can cause issues with foreign key constraints
+      console.log('[CloudSage] Using SmartBuckets for storage (database initialization skipped)');
 
       console.log('[Service] Calling app.fetch with actualEnv:', !!actualEnv);
       // Pass context directly to Hono

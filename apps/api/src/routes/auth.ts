@@ -83,12 +83,15 @@ function generateToken(userId: string): string {
 export async function handleRegister(req: IncomingMessage, res: ServerResponse) {
   try {
     const body = await parseBody(req);
-    const { email, password } = body;
+    let { email, password } = body;
 
     if (!email || !password) {
       sendError(res, 400, 'Email and password are required');
       return;
     }
+
+    // Normalize email
+    email = email.toLowerCase().trim();
 
     console.log('[Auth] Registration attempt for email:', email);
 
@@ -136,12 +139,15 @@ export async function handleRegister(req: IncomingMessage, res: ServerResponse) 
 export async function handleLogin(req: IncomingMessage, res: ServerResponse) {
   try {
     const body = await parseBody(req);
-    const { email, password } = body;
+    let { email, password } = body;
 
     if (!email || !password) {
       sendError(res, 400, 'Email and password are required');
       return;
     }
+
+    // Normalize email
+    email = email.toLowerCase().trim();
 
     console.log('Login attempt for email:', email);
     const user = await getUserByEmail(email);
