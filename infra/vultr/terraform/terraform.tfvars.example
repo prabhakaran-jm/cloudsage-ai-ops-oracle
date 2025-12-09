@@ -1,0 +1,48 @@
+# Vultr Terraform Configuration
+# Copy this file to terraform.tfvars and fill in your values
+
+# Required: Your Vultr API Key
+# Get it from: https://my.vultr.com/settings/#settingsapi
+vultr_api_key = "YOUR_VULTR_API_KEY_HERE"
+
+# Optional: SSH Key IDs for instance access
+# Get your SSH key IDs with: vultr-cli ssh-key list
+# Or leave empty to use password authentication
+ssh_key_ids = []
+
+# Optional: Vultr region (default: ewr = New Jersey)
+# Available regions:
+#   ewr = New Jersey, USA
+#   lax = Los Angeles, USA
+#   ord = Chicago, USA
+#   dfw = Dallas, USA
+#   sea = Seattle, USA
+#   atl = Atlanta, USA
+#   ams = Amsterdam, Netherlands
+#   fra = Frankfurt, Germany
+#   lhr = London, UK
+#   sgp = Singapore
+#   syd = Sydney, Australia
+region = "ewr"
+
+# Optional: Instance plan (default: vc2-1c-1gb = $6/month)
+# Available plans:
+#   vc2-1c-1gb   = 1 vCPU, 1GB RAM, 25GB SSD ($6/month)
+#   vc2-2c-4gb   = 2 vCPU, 4GB RAM, 80GB SSD ($18/month)
+#   vc2-4c-8gb   = 4 vCPU, 8GB RAM, 160GB SSD ($36/month)
+#   vc2-6c-16gb  = 6 vCPU, 16GB RAM, 320GB SSD ($72/month)
+plan = "vc2-1c-1gb"
+
+# Required: Your GitHub repository URL
+# Replace YOUR_USERNAME with your GitHub username
+github_repo = "https://github.com/YOUR_USERNAME/cloudsage-ai-ops-oracle.git"
+
+# Optional: Custom API key for worker authentication
+# Leave empty to auto-generate a secure random key
+worker_api_key = ""
+
+# Optional: Enable automatic backups ($1/month)
+enable_backups = false
+
+# Optional: Additional tags
+tags = ["production", "cloudsage"]
