@@ -27,12 +27,12 @@ export default function HistoryChart({ history, loading }: HistoryChartProps) {
     // Clear canvas
     ctx.clearRect(0, 0, width, height);
 
-    // Draw background
-    ctx.fillStyle = '#f9fafb';
+    // Draw background (transparent for dark theme)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.fillRect(0, 0, width, height);
 
     if (history.length === 0) {
-      ctx.fillStyle = '#6b7280';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
       ctx.font = '14px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('No data available', width / 2, height / 2);
@@ -46,7 +46,7 @@ export default function HistoryChart({ history, loading }: HistoryChartProps) {
     const scoreRange = maxScore - minScore || 100;
 
     // Draw grid lines
-    ctx.strokeStyle = '#e5e7eb';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
       const y = padding + (chartHeight / 4) * i;
@@ -57,8 +57,8 @@ export default function HistoryChart({ history, loading }: HistoryChartProps) {
     }
 
     // Draw Y-axis labels
-    ctx.fillStyle = '#6b7280';
-    ctx.font = '12px sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '10px sans-serif';
     ctx.textAlign = 'right';
     for (let i = 0; i <= 4; i++) {
       const value = maxScore - (scoreRange / 4) * i;
@@ -67,7 +67,7 @@ export default function HistoryChart({ history, loading }: HistoryChartProps) {
     }
 
     // Draw line
-    ctx.strokeStyle = '#4f46e5';
+    ctx.strokeStyle = '#5048e5';
     ctx.lineWidth = 2;
     ctx.beginPath();
 
@@ -86,65 +86,55 @@ export default function HistoryChart({ history, loading }: HistoryChartProps) {
     ctx.stroke();
 
     // Draw points
-    ctx.fillStyle = '#4f46e5';
+    ctx.fillStyle = '#5048e5';
     history.forEach((entry, index) => {
       const x = padding + (chartWidth / (history.length - 1 || 1)) * index;
       const normalizedScore = (entry.score - minScore) / scoreRange;
       const y = padding + chartHeight - normalizedScore * chartHeight;
 
       ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fill();
     });
 
     // Draw X-axis labels (dates)
-    ctx.fillStyle = '#6b7280';
-    ctx.font = '10px sans-serif';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '9px sans-serif';
     ctx.textAlign = 'center';
-    const labelStep = Math.max(1, Math.floor(history.length / 5));
+    const labelStep = Math.max(1, Math.floor(history.length / 3));
     for (let i = 0; i < history.length; i += labelStep) {
       const x = padding + (chartWidth / (history.length - 1 || 1)) * i;
       const date = new Date(history[i].timestamp);
       const label = `${date.getMonth() + 1}/${date.getDate()}`;
-      ctx.fillText(label, x, height - padding + 20);
+      ctx.fillText(label, x, height - padding + 15);
     }
-
-    // Draw title
-    ctx.fillStyle = '#111827';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.fillText('Risk Score Trend', padding, 20);
   }, [history, loading]);
 
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk History</h3>
-        <div className="text-gray-600">Loading chart data...</div>
-      </div>
+      <div className="text-white/70 text-center py-8">Loading chart data...</div>
     );
   }
 
   if (history.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk History</h3>
-        <div className="text-gray-600">No risk history available. Ingest logs to see trends.</div>
+      <div className="text-center py-8">
+        <div className="text-white/50 text-sm mb-2">No risk history available.</div>
+        <div className="text-white/40 text-xs">Ingest logs to see trends.</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk History</h3>
+    <div className="flex flex-col h-full">
       <canvas
         ref={canvasRef}
-        width={600}
-        height={300}
-        className="w-full h-auto border border-gray-200 rounded"
+        width={300}
+        height={200}
+        className="w-full h-auto rounded"
       />
-      <div className="mt-4 text-sm text-gray-500">
-        Showing last {history.length} risk score{history.length !== 1 ? 's' : ''}
+      <div className="mt-4 text-xs text-white/50 text-center">
+        Last {history.length} score{history.length !== 1 ? 's' : ''}
       </div>
     </div>
   );

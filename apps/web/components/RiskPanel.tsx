@@ -10,27 +10,21 @@ interface RiskPanelProps {
 export default function RiskPanel({ riskScore, loading }: RiskPanelProps) {
   if (loading) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Score</h3>
-        <div className="text-gray-600">Calculating risk score...</div>
-      </div>
+      <div className="text-white/70">Calculating risk score...</div>
     );
   }
 
   if (!riskScore) {
     return (
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Score</h3>
-        <div className="text-gray-600">No risk data available. Ingest some logs to get started.</div>
-      </div>
+      <div className="text-white/70">No risk data available. Ingest some logs to get started.</div>
     );
   }
 
   const getScoreColor = (score: number) => {
-    if (score >= 70) return 'bg-red-600';
-    if (score >= 50) return 'bg-orange-600';
-    if (score >= 30) return 'bg-yellow-600';
-    return 'bg-green-600';
+    if (score >= 70) return 'bg-red-500';
+    if (score >= 50) return 'bg-orange-500';
+    if (score >= 30) return 'bg-yellow-500';
+    return 'bg-green-500';
   };
 
   const getScoreLabel = (score: number) => {
@@ -42,69 +36,82 @@ export default function RiskPanel({ riskScore, loading }: RiskPanelProps) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Risk Score</h3>
-      
-      <div className="flex items-center gap-6 mb-6">
-        <div className={`${getScoreColor(riskScore.score)} text-white rounded-full w-24 h-24 flex items-center justify-center text-2xl font-bold`}>
-          {riskScore.score}
-        </div>
-        <div>
-          <div className="text-2xl font-bold text-gray-900">{getScoreLabel(riskScore.score)}</div>
-          <div className="text-sm text-gray-500">Risk Level</div>
-          <div className="text-xs text-gray-400 mt-1">
-            Updated: {new Date(riskScore.timestamp).toLocaleString()}
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+      <div className="flex flex-col items-center justify-center gap-4">
+        <div className="relative h-40 w-40">
+          <svg className="h-full w-full" viewBox="0 0 100 100">
+            <circle className="stroke-current text-white/10" cx="50" cy="50" fill="transparent" r="40" strokeWidth="8"></circle>
+            <circle 
+              className={`stroke-current ${getScoreColor(riskScore.score).replace('bg-', 'text-')} transform -rotate-90 origin-center transition-all duration-500`}
+              cx="50" 
+              cy="50" 
+              fill="transparent" 
+              r="40" 
+              strokeDasharray="251.2" 
+              strokeDashoffset={251.2 * (1 - riskScore.score / 100)}
+              strokeLinecap="round" 
+              strokeWidth="8"
+            ></circle>
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-4xl font-bold text-white">{riskScore.score}</span>
           </div>
+        </div>
+        <div className="flex items-center gap-1 text-sm text-[#9795c6]">
+          <span className={`${getScoreColor(riskScore.score).replace('bg-', 'text-')}`}>●</span>
+          <span>{getScoreLabel(riskScore.score)} Risk Level</span>
         </div>
       </div>
-
-      {riskScore.labels.length > 0 && (
-        <div className="mb-4">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Risk Factors:</h4>
-          <div className="flex flex-wrap gap-2">
-            {riskScore.labels.map((label, index) => (
-              <span
-                key={index}
-                className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
-              >
-                {label}
-              </span>
-            ))}
+      
+      <div className="md:col-span-2 flex flex-col justify-center">
+        {riskScore.labels.length > 0 && (
+          <>
+            <h3 className="text-lg font-bold text-white mb-3">Risk Factors</h3>
+            <div className="flex flex-wrap gap-3">
+              {riskScore.labels.map((label, index) => (
+                <span
+                  key={index}
+                  className="rounded-full bg-[#5048e5]/20 px-3 py-1 text-sm font-medium text-[#5048e5]"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+        
+        {riskScore.factors && Object.keys(riskScore.factors).length > 0 && (
+          <div className="mt-4">
+            <h4 className="text-sm font-medium text-white/70 mb-2">Metrics:</h4>
+            <div className="grid grid-cols-3 gap-4 text-sm">
+              {riskScore.factors.errorRate !== undefined && (
+                <div>
+                  <div className="text-white/50">Error Rate</div>
+                  <div className="font-semibold text-white">
+                    {riskScore.factors.errorRate.toFixed(1)}%
+                  </div>
+                </div>
+              )}
+              {riskScore.factors.logVolume !== undefined && (
+                <div>
+                  <div className="text-white/50">Log Volume</div>
+                  <div className="font-semibold text-white">
+                    {riskScore.factors.logVolume}
+                  </div>
+                </div>
+              )}
+              {riskScore.factors.latency !== undefined && (
+                <div>
+                  <div className="text-white/50">Latency Issues</div>
+                  <div className="font-semibold text-white">
+                    {riskScore.factors.latency.toFixed(1)}%
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-
-      {riskScore.factors && Object.keys(riskScore.factors).length > 0 && (
-        <div>
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Metrics:</h4>
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            {riskScore.factors.errorRate !== undefined && (
-              <div>
-                <div className="text-gray-500">Error Rate</div>
-                <div className="font-semibold text-gray-900">
-                  {riskScore.factors.errorRate.toFixed(1)}%
-                </div>
-              </div>
-            )}
-            {riskScore.factors.logVolume !== undefined && (
-              <div>
-                <div className="text-gray-500">Log Volume</div>
-                <div className="font-semibold text-gray-900">
-                  {riskScore.factors.logVolume}
-                </div>
-              </div>
-            )}
-            {riskScore.factors.latency !== undefined && (
-              <div>
-                <div className="text-gray-500">Latency Issues</div>
-                <div className="font-semibold text-gray-900">
-                  {riskScore.factors.latency.toFixed(1)}%
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

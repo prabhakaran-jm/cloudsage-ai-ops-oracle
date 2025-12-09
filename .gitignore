@@ -54,3 +54,6 @@ npx-shim.*
 setup-windows-npx.sh
 test-npx-shim.sh
 
+
+# Local Netlify folder
+.netlify

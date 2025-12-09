@@ -9,6 +9,13 @@ import RiskPanel from '@/components/RiskPanel';
 import ForecastPanel from '@/components/ForecastPanel';
 import HistoryChart from '@/components/HistoryChart';
 
+// Mock action items for demo
+const mockActionItems = [
+  { id: 1, text: 'Scale up web-worker-3 deployment.', completed: true, time: '2h ago', priority: 'high' },
+  { id: 2, text: 'Investigate high I/O wait on primary database.', completed: false, time: '4h ago', priority: 'medium' },
+  { id: 3, text: 'Review latest security patch for Redis cache.', completed: false, time: '1d ago', priority: 'medium' }
+];
+
 export default function ProjectDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -109,140 +116,166 @@ export default function ProjectDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">Loading project...</div>
+      <div className="min-h-screen bg-[#121121] flex items-center justify-center">
+        <div className="text-white/70">Loading project...</div>
       </div>
     );
   }
 
   if (!project) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">Project not found</div>
+      <div className="min-h-screen bg-[#121121] flex items-center justify-center">
+        <div className="text-white/70">Project not found</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center">
-              <Link href="/projects" className="text-gray-600 hover:text-gray-900 mr-4">
-                ← Back to Projects
-              </Link>
-              <h1 className="text-xl font-bold text-gray-900">CloudSage</h1>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden bg-[#121121] text-white">
+      {/* Background Gradient */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-[#121121]"></div>
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80vw] h-[80vh] bg-[#5048e5]/20 rounded-full blur-[200px]"></div>
+      </div>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
-              {error}
-            </div>
-          )}
-
-          {editing ? (
-            <form onSubmit={handleUpdate} className="bg-white p-6 rounded-lg shadow">
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Project Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  required
-                />
+      <div className="relative z-10 layout-container flex h-full grow flex-col">
+        <div className="flex flex-1 justify-center px-4 py-8 sm:px-8 md:px-12 lg:px-20">
+          <div className="layout-content-container flex w-full max-w-4xl flex-col gap-8">
+            {/* Header */}
+            <header>
+              <div className="mb-2">
+                <div className="flex flex-wrap gap-2">
+                  <Link href="/projects" className="text-[#9795c6] hover:text-white transition-colors text-base font-medium leading-normal">
+                    Projects
+                  </Link>
+                  <span className="text-[#9795c6] text-base font-medium leading-normal">/</span>
+                  <span className="text-white text-base font-medium leading-normal">{project.name}</span>
+                </div>
               </div>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                  rows={4}
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
-                >
-                  Save
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditing(false);
-                    setName(project.name);
-                    setDescription(project.description || '');
-                  }}
-                  className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <div className="bg-white p-6 rounded-lg shadow">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">{project.name}</h2>
-                  {project.description && (
-                    <p className="text-gray-600 mb-4">{project.description}</p>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                {editing ? (
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="text-white text-4xl font-bold leading-tight tracking-tight bg-transparent border-b border-white/20 focus:border-[#5048e5] focus:outline-none"
+                  />
+                ) : (
+                  <h1 className="text-white text-4xl font-bold leading-tight tracking-tight">{project.name}</h1>
+                )}
+                <div className="flex flex-1 gap-3 flex-wrap justify-start sm:justify-end min-w-[200px]">
+                  {editing ? (
+                    <>
+                      <button
+                        onClick={handleUpdate}
+                        className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-[#5048e5] hover:bg-[#5048e5]/90 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors"
+                      >
+                        <span className="truncate">Save</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditing(false);
+                          setName(project.name);
+                          setDescription(project.description || '');
+                        }}
+                        className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-white/10 hover:bg-white/20 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors"
+                      >
+                        <span className="truncate">Cancel</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setEditing(true)}
+                        className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-white/10 hover:bg-white/20 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors"
+                      >
+                        <span className="text-base">✏</span>
+                        <span className="truncate">Edit</span>
+                      </button>
+                      <button
+                        onClick={handleDelete}
+                        className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-white/10 hover:bg-white/20 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors"
+                      >
+                        <span className="text-base">🗑</span>
+                        <span className="truncate">Delete</span>
+                      </button>
+                    </>
                   )}
-                  <p className="text-sm text-gray-500">
-                    Created: {new Date(project.createdAt).toLocaleString()}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Updated: {new Date(project.updatedAt).toLocaleString()}
-                  </p>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setEditing(true)}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={handleDelete}
-                    className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
-                  >
-                    Delete
-                  </button>
+              </div>
+              {editing && (
+                <div className="mt-4">
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#5048e5] focus:border-transparent"
+                    placeholder="Project description..."
+                    rows={3}
+                  />
+                </div>
+              )}
+            </header>
+
+            {error && (
+              <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg">
+                {error}
+              </div>
+            )}
+
+            {/* Main Content Grid */}
+            <main className="grid grid-cols-1 gap-8 md:grid-cols-3">
+              {/* Risk Dashboard */}
+              <div className="md:col-span-3 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10">
+                <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-6">Risk Dashboard</h2>
+                <RiskPanel riskScore={riskScore} loading={loading} />
+              </div>
+
+              {/* AI Forecast */}
+              <div className="md:col-span-3">
+                <ForecastPanel forecast={forecast} loading={forecastLoading} />
+              </div>
+
+              {/* Action Items */}
+              <div className="md:col-span-2 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10">
+                <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Action Items</h2>
+                <div className="space-y-4">
+                  {mockActionItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-center gap-4 rounded-lg border-l-4 ${
+                        item.priority === 'high' ? 'border-[#5048e5]' : 'border-amber-500'
+                      } bg-white/5 p-4`}
+                    >
+                      <input
+                        checked={item.completed}
+                        className="h-5 w-5 rounded border-gray-600 bg-transparent text-[#5048e5] focus:ring-[#5048e5] focus:ring-offset-transparent"
+                        type="checkbox"
+                        readOnly
+                      />
+                      <label className="flex-1 text-white/90">{item.text}</label>
+                      <span className="text-sm text-[#9795c6]">{item.time}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-            </div>
-          )}
+              {/* Historical Trends */}
+              <div className="md:col-span-1 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10 flex flex-col">
+                <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Historical Trends</h2>
+                <div className="flex-grow">
+                  <HistoryChart history={riskHistory} loading={loading} />
+                </div>
+              </div>
 
-          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <RiskPanel riskScore={riskScore} loading={loading} />
-            </div>
-            <div>
-              <LogIngest projectId={projectId} onIngested={handleRefresh} />
-            </div>
-          </div>
-
-          <div className="mt-8">
-            <ForecastPanel forecast={forecast} loading={forecastLoading} />
-          </div>
-
-          <div className="mt-8">
-            <HistoryChart history={riskHistory} loading={loading} />
+              {/* Log Ingestion */}
+              <div className="md:col-span-3 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10">
+                <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Log Ingestion</h2>
+                <LogIngest projectId={projectId} onIngested={handleRefresh} />
+              </div>
+            </main>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

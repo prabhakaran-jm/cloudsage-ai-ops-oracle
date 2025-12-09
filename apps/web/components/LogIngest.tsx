@@ -63,47 +63,30 @@ export default function LogIngest({ projectId, onIngested }: LogIngestProps) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Ingest Logs</h3>
-      
+    <div className="flex flex-col gap-4">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+        <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded mb-4">
+        <div className="bg-green-500/20 border border-green-500/50 text-green-300 px-4 py-3 rounded-lg">
           {success}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="logs" className="block text-sm font-medium text-gray-700 mb-2">
-            Paste logs or upload a file
-          </label>
-          <textarea
-            id="logs"
-            value={logContent}
-            onChange={(e) => setLogContent(e.target.value)}
-            placeholder="Paste your logs here...&#10;&#10;Example:&#10;2024-01-01 10:00:00 ERROR: Database connection failed&#10;2024-01-01 10:00:05 INFO: Retrying connection..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 font-mono text-sm"
-            rows={10}
-            disabled={loading}
-          />
-        </div>
-
-        <div className="flex gap-4">
-          <button
-            type="submit"
-            disabled={loading || !logContent.trim()}
-            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading ? 'Ingesting...' : 'Ingest Logs'}
-          </button>
-
-          <label className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 cursor-pointer">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <textarea
+          id="logs"
+          value={logContent}
+          onChange={(e) => setLogContent(e.target.value)}
+          placeholder="Paste your log data here..."
+          className="w-full h-40 rounded-lg p-4 bg-black/30 text-white font-mono text-sm border border-white/10 focus:ring-2 focus:ring-[#5048e5] focus:border-[#5048e5] placeholder:text-white/40"
+          disabled={loading}
+        />
+        <div className="flex justify-end gap-3">
+          <label className="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-6 bg-white/10 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed">
             <input
               type="file"
               accept=".log,.txt"
@@ -111,14 +94,24 @@ export default function LogIngest({ projectId, onIngested }: LogIngestProps) {
               disabled={loading}
               className="hidden"
             />
-            {loading ? 'Uploading...' : 'Upload File'}
+            <span className="truncate">{loading ? 'Uploading...' : 'Upload File'}</span>
           </label>
+          <button
+            type="submit"
+            disabled={loading || !logContent.trim()}
+            className="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-6 bg-[#5048e5] hover:bg-[#5048e5]/90 text-white text-sm font-bold leading-normal tracking-[0.015em] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <>
+                <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                <span className="truncate">Analyzing...</span>
+              </>
+            ) : (
+              <span className="truncate">Analyze Logs</span>
+            )}
+          </button>
         </div>
       </form>
-
-      <p className="mt-4 text-sm text-gray-500">
-        Logs will be analyzed to calculate risk scores. You can paste multiple lines or upload a log file.
-      </p>
     </div>
   );
 }
