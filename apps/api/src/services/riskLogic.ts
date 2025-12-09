@@ -58,7 +58,7 @@ export function calculateRiskScore(logs: LogEntry[]): RiskScore {
   });
   
   // Calculate error rate based on total errors vs log volume
-  const errorRate = logs.length > 0 ? Math.min(100, (totalErrorCount / logs.length) * 10) : 0;
+  const errorRate = logs.length > 0 ? Math.min(100, (totalErrorCount / logs.length) * 100) : 0;
   factors.errorRate = errorRate;
   
   console.log(`[RiskLogic] Error analysis: ${totalErrorCount} errors in ${logs.length} logs = ${errorRate.toFixed(1)}% error rate`);

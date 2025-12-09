@@ -162,7 +162,14 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
     await storeLogs(projectId, storedLogs);
 
     // Get all logs for risk scoring
-    const projectLogs = await getLogs(projectId);
+    let projectLogs = await getLogs(projectId);
+    
+    // Fallback: If DB retrieval is empty (eventual consistency) but we just ingested logs,
+    // use the ingested logs for scoring to ensure we don't return a 0 score.
+    if (projectLogs.length === 0 && storedLogs.length > 0) {
+      console.warn(`[Ingest] getLogs returned 0 logs after ingesting ${storedLogs.length}. Using ingested logs for scoring.`);
+      projectLogs = storedLogs;
+    }
 
     // Calculate and store risk score after ingestion
     try {
