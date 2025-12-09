@@ -27,9 +27,12 @@ export default function LogIngest({ projectId, onIngested }: LogIngestProps) {
 
     try {
       const result = await apiClient.ingestLogs(projectId, logContent);
+      console.log('[LogIngest] Ingestion result:', result);
+      console.log('[LogIngest] Risk score from ingestion:', result.riskScore);
       setSuccess(`Successfully ingested ${result.count} log entries`);
       setLogContent('');
       if (onIngested) {
+        console.log('[LogIngest] Calling onIngested with risk score:', result.riskScore);
         onIngested(result.riskScore);
       }
     } catch (err: any) {
@@ -50,8 +53,11 @@ export default function LogIngest({ projectId, onIngested }: LogIngestProps) {
     try {
       const text = await file.text();
       const result = await apiClient.ingestLogs(projectId, text);
+      console.log('[LogIngest] File ingestion result:', result);
+      console.log('[LogIngest] Risk score from file ingestion:', result.riskScore);
       setSuccess(`Successfully ingested ${result.count} log entries from file`);
       if (onIngested) {
+        console.log('[LogIngest] Calling onIngested with risk score:', result.riskScore);
         onIngested(result.riskScore);
       }
     } catch (err: any) {

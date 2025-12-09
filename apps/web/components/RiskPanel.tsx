@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { RiskScore } from '@/lib/apiClient';
 
 interface RiskPanelProps {
@@ -8,6 +9,10 @@ interface RiskPanelProps {
 }
 
 export default function RiskPanel({ riskScore, loading }: RiskPanelProps) {
+  useEffect(() => {
+    console.log('[RiskPanel] Risk score prop changed:', riskScore);
+  }, [riskScore]);
+
   if (loading) {
     return (
       <div className="text-white/70">Calculating risk score...</div>
