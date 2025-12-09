@@ -205,22 +205,15 @@ export async function handleGetProject(req: IncomingMessage, res: ServerResponse
     return;
   }
 
-  // Get project logs and calculate risk score
-  const { getLogsForProject } = await import('../routes/ingest');
-  const projectLogs = await getLogsForProject(projectId);
-  
-  // Try Vultr worker first, fallback to local calculation
-  let riskScore;
-  try {
-    riskScore = await calculateRiskScoreFromVultr({
-      projectId,
-      logs: projectLogs,
-    });
-  } catch (error) {
-    console.warn('Vultr worker unavailable, using local calculation:', error);
-    // Fallback to local risk scoring
-    riskScore = getProjectRiskScore(projectLogs);
-  }
+  // Get the latest risk score from history
+  const { getRiskHistory } = await import('../routes/ingest');
+  const riskHistory = await getRiskHistory(projectId, 1);
+  const riskScore = riskHistory.length > 0 ? {
+    score: riskHistory[0].score,
+    labels: riskHistory[0].labels,
+    timestamp: riskHistory[0].timestamp,
+    factors: {},
+  } : null;
 
   sendSuccess(res, { 
     project,
