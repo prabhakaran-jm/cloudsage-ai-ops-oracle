@@ -115,6 +115,7 @@ npm run dev:vultr-worker
 ## Documentation
 
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and component design
+- **[AI_ASSISTANT_USAGE.md](docs/AI_ASSISTANT_USAGE.md)** - How Claude Code and Gemini CLI were used in development
 
 
 ---
