@@ -71,10 +71,13 @@ apps/
 services/
   vultr-worker/   # Vultr risk model service
 infra/
-  vultr/          # Scripts / terraform for Vultr resources
-  deploy/         # Hosting config (Netlify / Vercel / etc.)
+  deploy/         # Deployment scripts (Raindrop, Vultr, Netlify)
+  vultr/          # Vultr infrastructure (Terraform)
+    terraform/    # Terraform configurations
 docs/
   ARCHITECTURE.md # System architecture and design
+scripts/
+  test-worker-integration.js  # Utility scripts
 ```
 
 ---
@@ -110,12 +113,30 @@ npm run dev:api
 npm run dev:vultr-worker
 ```
 
+### Deployment
+
+See **[infra/deploy/DEPLOYMENT_GUIDE.md](infra/deploy/DEPLOYMENT_GUIDE.md)** for complete deployment instructions.
+
+**Quick deploy:**
+```bash
+# Deploy Vultr worker
+./infra/deploy/deploy-vultr-worker.sh
+
+# Deploy backend to Raindrop
+./infra/deploy/deploy-raindrop.sh
+
+# Deploy frontend to Netlify
+cd apps/web && netlify deploy --prod
+```
+
 ---
 
 ## Documentation
 
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and component design
 - **[AI_ASSISTANT_USAGE.md](docs/AI_ASSISTANT_USAGE.md)** - How Claude Code and Gemini CLI were used in development
+- **[DEPLOYMENT_GUIDE.md](infra/deploy/DEPLOYMENT_GUIDE.md)** - Complete deployment instructions
+- **[Infrastructure README](infra/README.md)** - Infrastructure overview and setup
 
 
 ---
