@@ -71,13 +71,11 @@ apps/
 services/
   vultr-worker/   # Vultr risk model service
 infra/
-  deploy/         # Deployment scripts (Raindrop, Vultr, Netlify)
+  deploy/         # Deployment scripts and tests
   vultr/          # Vultr infrastructure (Terraform)
     terraform/    # Terraform configurations
 docs/
   ARCHITECTURE.md # System architecture and design
-scripts/
-  test-worker-integration.js  # Utility scripts
 ```
 
 ---

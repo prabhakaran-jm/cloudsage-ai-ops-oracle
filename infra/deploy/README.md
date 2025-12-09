@@ -15,6 +15,9 @@ All deployment scripts for CloudSage are centralized here.
 - **`create-worker-env.sh`** - Create/update worker .env file
 - **`verify-worker-key.sh`** - Test worker API key and connectivity
 
+### Testing
+- **`test-integration.js`** - Test complete backend → worker integration
+
 ---
 
 ## 🚀 Deployment Workflows
@@ -39,6 +42,32 @@ All deployment scripts for CloudSage are centralized here.
 - Raindrop CLI installed
 - Raindrop account authenticated
 - Environment variables ready
+
+---
+
+### 6. Test Integration
+
+```bash
+# Test complete backend → worker integration
+node infra/deploy/test-integration.js
+
+# With custom configuration
+VULTR_WORKER_URL=http://YOUR_IP:8080 \
+VULTR_API_KEY=your_key \
+BACKEND_URL=http://localhost:3001 \
+node infra/deploy/test-integration.js
+```
+
+**What it does:**
+- Tests worker health endpoint
+- Tests worker score calculation
+- Tests backend health endpoint
+- Tests complete integration (register → create project → ingest logs → get risk score)
+
+**Prerequisites:**
+- Worker running and accessible
+- Backend running (for integration test)
+- Node.js 18+ (for native fetch support)
 
 ---
 
