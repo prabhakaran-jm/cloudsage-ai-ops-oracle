@@ -1,7 +1,7 @@
 // Vultr API client for risk scoring worker communication
 
 const VULTR_WORKER_URL = process.env.VULTR_WORKER_URL || 'http://192.248.166.170:8080';
-const VULTR_API_KEY = process.env.VULTR_API_KEY || 'default-key-change-in-production';
+const VULTR_API_KEY = process.env.VULTR_API_KEY || '90ccd4ced7150948cee67d6388452f8b732037b359874c9d41ee01413d065178';
 
 export interface LogEntry {
   content: string;

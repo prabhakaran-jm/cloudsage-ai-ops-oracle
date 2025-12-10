@@ -160,27 +160,33 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
 
     // Store logs (tries SmartBuckets, falls back to memory)
     await storeLogs(projectId, storedLogs);
+    console.log(`[Ingest] ✅ Stored ${storedLogs.length} logs successfully`);
 
     // Get all logs for risk scoring
+    console.log('[Ingest] 🔍 Getting all logs for risk scoring...');
     let projectLogs = await getLogs(projectId);
-    
+    console.log(`[Ingest] 📊 Retrieved ${projectLogs.length} logs from storage`);
+
     // Fallback: If DB retrieval is empty (eventual consistency) but we just ingested logs,
     // use the ingested logs for scoring to ensure we don't return a 0 score.
     if (projectLogs.length === 0 && storedLogs.length > 0) {
-      console.warn(`[Ingest] getLogs returned 0 logs after ingesting ${storedLogs.length}. Using ingested logs for scoring.`);
+      console.warn(`[Ingest] ⚠️ getLogs returned 0 logs after ingesting ${storedLogs.length}. Using ingested logs for scoring.`);
       projectLogs = storedLogs;
     }
 
+    console.log('[Ingest] 🎯 Starting risk score calculation...');
     // Calculate and store risk score after ingestion
     try {
+      console.log('[Ingest] 📝 Preparing logs for scoring...');
       const projectLogsForScoring = projectLogs.map(log => ({
         content: log.content,
         timestamp: log.timestamp,
         metadata: log.metadata,
       }));
+      console.log(`[Ingest] ✅ Prepared ${projectLogsForScoring.length} logs for scoring`);
 
       let riskScore;
-      console.log(`[Ingest] Calculating risk score for ${projectLogsForScoring.length} logs`);
+      console.log(`[Ingest] 🧮 Calculating risk score for ${projectLogsForScoring.length} logs`);
       try {
         console.log('[Ingest] Trying Vultr worker...');
         riskScore = await calculateRiskScoreFromVultr({
@@ -210,10 +216,13 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
       }, 201);
       return;
     } catch (error) {
-      console.error('Error calculating risk score:', error);
+      console.error('[Ingest] ❌ Error calculating risk score:', error);
+      console.error('[Ingest] ❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      console.error('[Ingest] ❌ Error message:', error instanceof Error ? error.message : String(error));
       // Don't fail the ingestion if risk calculation fails
     }
 
+    console.log('[Ingest] ⚠️ Returning response WITHOUT risk score (fallback path)');
     sendSuccess(res, {
       message: `Ingested ${storedLogs.length} log entries`,
       count: storedLogs.length,
