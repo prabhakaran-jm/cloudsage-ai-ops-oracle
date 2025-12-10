@@ -19,12 +19,12 @@ const logs: Map<string, Array<{
 let nextLogId = 1;
 
 // Helper to store logs (tries SmartBuckets first, falls back to memory)
-async function storeLogs(projectId: string, logEntries: any[]): Promise<void> {
+export async function storeLogs(projectId: string, logEntries: any[], env?: any): Promise<void> {
   // Try SmartBuckets first
   const bucket = 'logs';
   for (const entry of logEntries) {
     const key = `${projectId}/${entry.timestamp}/${entry.id}`;
-    const stored = await smartBuckets.put(bucket, key, entry);
+    const stored = await smartBuckets.put(bucket, key, entry, env);
     
     if (!stored) {
       // Fallback to in-memory storage
@@ -36,17 +36,17 @@ async function storeLogs(projectId: string, logEntries: any[]): Promise<void> {
 }
 
 // Helper to retrieve logs (tries SmartBuckets first, falls back to memory)
-export async function getLogs(projectId: string): Promise<any[]> {
+export async function getLogs(projectId: string, env?: any): Promise<any[]> {
   // Try SmartBuckets first
   const bucket = 'logs';
   const prefix = `${projectId}/`;
-  const keys = await smartBuckets.list(bucket, prefix);
+  const keys = await smartBuckets.list(bucket, prefix, env);
   
   if (keys.length > 0) {
     // Retrieve from SmartBuckets
     const logEntries = [];
     for (const key of keys.slice(-100)) { // Last 100 logs
-      const entry = await smartBuckets.get(bucket, key);
+      const entry = await smartBuckets.get(bucket, key, env);
       if (entry) {
         logEntries.push(entry);
       }
@@ -269,8 +269,8 @@ export async function handleGetLogs(req: IncomingMessage, res: ServerResponse) {
 }
 
 // Export helper function to get logs for a project (for use in other modules)
-export async function getLogsForProject(projectId: string) {
-  const projectLogs = await getLogs(projectId);
+export async function getLogsForProject(projectId: string, env?: any) {
+  const projectLogs = await getLogs(projectId, env);
   return projectLogs.map(log => ({
     content: log.content,
     timestamp: log.timestamp,
@@ -287,7 +287,7 @@ const riskHistory: Map<string, Array<{
   factors: any;
 }>> = new Map();
 
-export async function storeRiskScore(projectId: string, riskScore: any) {
+export async function storeRiskScore(projectId: string, riskScore: any, env?: any) {
   try {
     // Try SmartSQL first
     await smartSQL.execute(
@@ -299,7 +299,8 @@ export async function storeRiskScore(projectId: string, riskScore: any) {
         JSON.stringify(riskScore.labels),
         JSON.stringify(riskScore.factors || {}),
         riskScore.timestamp,
-      ]
+      ],
+      env
     );
     return; // Success, don't use fallback
   } catch (error) {
@@ -322,12 +323,13 @@ export async function storeRiskScore(projectId: string, riskScore: any) {
   riskHistory.set(projectId, history);
 }
 
-export async function getRiskHistory(projectId: string, limit = 50) {
+export async function getRiskHistory(projectId: string, limit = 50, env?: any) {
   try {
     // Try SmartSQL first
     const rows = await smartSQL.query(
       'SELECT score, labels, factors, timestamp FROM risk_history WHERE project_id = ? ORDER BY timestamp DESC LIMIT ?',
-      [projectId, limit]
+      [projectId, limit],
+      env
     );
     
     console.log(`[getRiskHistory] Found ${rows.length} entries for project ${projectId}`);

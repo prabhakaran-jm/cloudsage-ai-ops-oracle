@@ -513,16 +513,19 @@ app.post('/api/ingest/:projectId', async (c: Context<{ Bindings: Env }>) => {
       };
     });
 
-    const { smartBuckets } = await import('../services/raindropSmart');
-    const bucket = 'logs';
-    for (const entry of storedLogs) {
-      const key = `${projectId}/${entry.timestamp}/${entry.id}`;
-      await smartBuckets.put(bucket, key, entry, c.env);
-    }
+    console.log(`[Ingest] ↘️ Received ${storedLogs.length} entries for ${projectId}`);
+    await ingestRoutes.storeLogs(projectId, storedLogs, c.env);
+    console.log(`[Ingest] ✅ Stored ${storedLogs.length} logs successfully`);
 
     // Get all logs and calculate risk score
-    const { getLogs } = await import('../routes/ingest');
-    const projectLogs = await getLogs(projectId);
+    console.log('[Ingest] 🔍 Getting all logs for risk scoring...');
+    let projectLogs = await ingestRoutes.getLogs(projectId, c.env);
+
+    if (projectLogs.length === 0 && storedLogs.length > 0) {
+      console.warn(`[Ingest] ⚠️ getLogs returned 0 entries. Using freshly stored logs for scoring.`);
+      projectLogs = storedLogs;
+    }
+
     const projectLogsForScoring = projectLogs.map((log: any) => ({
       content: log.content,
       timestamp: log.timestamp,
@@ -530,10 +533,10 @@ app.post('/api/ingest/:projectId', async (c: Context<{ Bindings: Env }>) => {
     }));
 
     let riskScore = null;
+    console.log(`[Ingest] 🧮 Calculating risk score for ${projectLogsForScoring.length} logs`);
     try {
       const { calculateRiskScoreFromVultr } = await import('../services/vultrClient');
       const { getProjectRiskScore } = await import('../services/riskLogic');
-      const { storeRiskScore } = await import('../routes/ingest');
       
       try {
         riskScore = await calculateRiskScoreFromVultr({
@@ -545,7 +548,9 @@ app.post('/api/ingest/:projectId', async (c: Context<{ Bindings: Env }>) => {
         riskScore = getProjectRiskScore(projectLogsForScoring);
       }
       
-      await storeRiskScore(projectId, riskScore);
+      console.log('[Ingest] 💾 Storing risk score...');
+      await ingestRoutes.storeRiskScore(projectId, riskScore, c.env);
+      console.log('[Ingest] ✅ Risk score stored');
     } catch (error) {
       console.error('Error calculating risk score:', error);
     }
@@ -573,8 +578,7 @@ app.get('/api/ingest/:projectId', async (c: Context<{ Bindings: Env }>) => {
   }
 
   try {
-    const { getLogs } = await import('../routes/ingest');
-    const projectLogs = await getLogs(projectId);
+    const projectLogs = await ingestRoutes.getLogs(projectId, c.env);
     
     const limit = parseInt(c.req.query('limit') || '50');
     const offset = parseInt(c.req.query('offset') || '0');
