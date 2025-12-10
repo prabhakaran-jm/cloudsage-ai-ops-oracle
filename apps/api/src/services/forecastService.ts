@@ -27,9 +27,13 @@ export interface ForecastContext {
  * Generate daily forecast using SmartInference
  * Tries SmartInference first, falls back to local AI-powered generation
  */
-export async function generateForecast(projectId: string, date: string = new Date().toISOString().split('T')[0]): Promise<Forecast> {
-  // Try SmartInference first
-  const inferenceResult = await runForecastInference(projectId, date);
+export async function generateForecast(
+  projectId: string,
+  date: string = new Date().toISOString().split('T')[0],
+  env?: any
+): Promise<Forecast> {
+  // Try SmartInference first (pass env so SmartSQL/SmartMemory use native bindings)
+  const inferenceResult = await runForecastInference(projectId, date, env);
   
   if (inferenceResult) {
     // SmartInference succeeded
@@ -49,7 +53,7 @@ export async function generateForecast(projectId: string, date: string = new Dat
   console.log('Using local AI forecast generation for project:', projectId);
   
   // Get risk history for context
-  const riskHistory = await getRiskHistory(projectId, 30); // Last 30 days
+  const riskHistory = await getRiskHistory(projectId, 30, env); // Last 30 days
   
   // Get project baseline from SmartMemory (if available)
   let baseline = null;

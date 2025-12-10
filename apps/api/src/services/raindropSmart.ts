@@ -45,7 +45,8 @@ function getEnvVar(key: string, env?: any): string {
  */
 async function mcpRequest(method: string, params: any, env?: any): Promise<any> {
   const apiKey = getEnvVar('RAINDROP_API_KEY', env);
-  const mcpUrl = getEnvVar('RAINDROP_MCP_URL', env);
+  const rawUrl = getEnvVar('RAINDROP_MCP_URL', env);
+  const mcpUrl = rawUrl?.replace(/\/+$/, '') || '';
 
   if (!apiKey) {
     // No API key configured, return null to use fallback
@@ -446,20 +447,38 @@ export const smartBuckets = {
   },
 };
 
-// SmartSQL wrapper with improved error handling
+// SmartSQL wrapper with improved error handling and native binding support
 export const smartSQL = {
   /**
    * Execute a SQL query
    */
   async query(sql: string, params: any[] = [], env?: any): Promise<any[]> {
     try {
-      const result = await mcpRequest('tools/call', {
-        name: 'smartSQL.query',
-        arguments: {
-          sql,
+      // Prefer native SmartSQL binding if available
+      const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
+      if (mainDb?.executeQuery) {
+        const result = await mainDb.executeQuery({
+          textQuery: sql,
           params,
+          format: 'json',
+        });
+        const rows = result?.rows || [];
+        console.log(`[SmartSQL] (native) Query returned ${rows.length} rows`);
+        return rows;
+      }
+
+      // Fallback to MCP
+      const result = await mcpRequest(
+        'tools/call',
+        {
+          name: 'smartSQL.query',
+          arguments: {
+            sql,
+            params,
+          },
         },
-      }, env);
+        env
+      );
 
       if (result === null) {
         console.warn('[SmartSQL] Query failed - MCP unavailable:', sql.substring(0, 50));
@@ -480,13 +499,31 @@ export const smartSQL = {
    */
   async execute(sql: string, params: any[] = [], env?: any): Promise<{ affectedRows: number; insertId?: string }> {
     try {
-      const result = await mcpRequest('tools/call', {
-        name: 'smartSQL.execute',
-        arguments: {
-          sql,
+      // Prefer native SmartSQL binding if available
+      const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
+      if (mainDb?.executeQuery) {
+        const result = await mainDb.executeQuery({
+          textQuery: sql,
           params,
+          format: 'json',
+        });
+        const affectedRows = result?.affectedRows || result?.rowCount || 0;
+        console.log(`[SmartSQL] (native) Execute affected ${affectedRows} rows`);
+        return { affectedRows, insertId: result?.insertId };
+      }
+
+      // Fallback to MCP
+      const result = await mcpRequest(
+        'tools/call',
+        {
+          name: 'smartSQL.execute',
+          arguments: {
+            sql,
+            params,
+          },
         },
-      }, env);
+        env
+      );
 
       if (result === null) {
         console.warn('[SmartSQL] Execute failed - MCP unavailable:', sql.substring(0, 50));
@@ -507,12 +544,17 @@ export const smartSQL = {
    */
   async transaction(queries: Array<{ sql: string; params: any[] }>, env?: any): Promise<boolean> {
     try {
-      const result = await mcpRequest('tools/call', {
-        name: 'smartSQL.transaction',
-        arguments: {
-          queries,
+      // Native transaction not exposed; fall back to MCP when available
+      const result = await mcpRequest(
+        'tools/call',
+        {
+          name: 'smartSQL.transaction',
+          arguments: {
+            queries,
+          },
         },
-      }, env);
+        env
+      );
 
       if (result === null) {
         console.warn('[SmartSQL] Transaction failed - MCP unavailable');

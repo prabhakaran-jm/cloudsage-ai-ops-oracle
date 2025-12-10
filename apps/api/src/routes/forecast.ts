@@ -4,6 +4,7 @@ import { sendSuccess, sendError } from '../utils/response';
 import { generateForecast, Forecast } from '../services/forecastService';
 import { getRiskHistory } from './ingest';
 import { smartBuckets, smartInference } from '../services/raindropSmart';
+import { getUserIdFromAuthHeader } from './auth';
 
 // Fallback in-memory forecast storage (used if SmartBuckets unavailable)
 const forecasts: Map<string, Forecast> = new Map();
@@ -34,24 +35,8 @@ async function getForecast(projectId: string, date: string): Promise<Forecast | 
   return forecasts.get(`${projectId}_${date}`) || null;
 }
 
-// Extract user ID from token
-function getUserIdFromToken(req: IncomingMessage): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  try {
-    const token = authHeader.substring(7);
-    const decoded = Buffer.from(token, 'base64').toString('utf-8');
-    const userId = decoded.split(':')[0];
-    return userId || null;
-  } catch {
-    return null;
-  }
-}
-
-function requireAuth(req: IncomingMessage, res: ServerResponse): string | null {
-  const userId = getUserIdFromToken(req);
+async function requireAuth(req: IncomingMessage, res: ServerResponse): Promise<string | null> {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
   if (!userId) {
     sendError(res, 401, 'Unauthorized');
     return null;
@@ -60,7 +45,7 @@ function requireAuth(req: IncomingMessage, res: ServerResponse): string | null {
 }
 
 export async function handleGetForecast(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const url = req.url || '';
@@ -99,7 +84,7 @@ export async function handleGetForecast(req: IncomingMessage, res: ServerRespons
 }
 
 export async function handleGetForecastHistory(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const url = req.url || '';
@@ -141,7 +126,7 @@ export async function handleGetForecastHistory(req: IncomingMessage, res: Server
 }
 
 export async function handleGetRiskHistory(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const url = req.url || '';

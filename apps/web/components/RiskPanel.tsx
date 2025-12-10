@@ -6,9 +6,10 @@ import { RiskScore } from '@/lib/apiClient';
 interface RiskPanelProps {
   riskScore: RiskScore | null;
   loading?: boolean;
+  updatedAt?: string | null;
 }
 
-export default function RiskPanel({ riskScore, loading }: RiskPanelProps) {
+export default function RiskPanel({ riskScore, loading, updatedAt }: RiskPanelProps) {
   useEffect(() => {
     console.log('[RiskPanel] Risk score prop changed:', riskScore);
   }, [riskScore]);
@@ -21,7 +22,9 @@ export default function RiskPanel({ riskScore, loading }: RiskPanelProps) {
 
   if (!riskScore) {
     return (
-      <div className="text-white/70">No risk data available. Ingest some logs to get started.</div>
+      <div className="flex items-center gap-3 text-white/70">
+        <span> No risk data available. Ingest some logs to get started.</span>
+      </div>
     );
   }
 
@@ -39,6 +42,9 @@ export default function RiskPanel({ riskScore, loading }: RiskPanelProps) {
     if (score > 0) return 'Low';
     return 'Healthy';
   };
+
+  const label = getScoreLabel(riskScore.score);
+  const updatedLabel = updatedAt || riskScore.timestamp;
 
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
@@ -64,11 +70,21 @@ export default function RiskPanel({ riskScore, loading }: RiskPanelProps) {
         </div>
         <div className="flex items-center gap-1 text-sm text-[#9795c6]">
           <span className={`${getScoreColor(riskScore.score).replace('bg-', 'text-')}`}>●</span>
-          <span>{getScoreLabel(riskScore.score)} Risk Level</span>
+          <span>{label} Risk Level</span>
+        </div>
+        <div className="text-xs text-white/50">
+          Last updated: {new Date(updatedLabel).toLocaleString()}
         </div>
       </div>
       
       <div className="md:col-span-2 flex flex-col justify-center">
+        <div className="text-white/80 text-sm mb-3">
+          {label === 'Critical' ? 'Immediate action recommended. Investigate failures and scale or rollback.' :
+           label === 'High' ? 'High risk. Check recent incidents, scale resources, and review alerts.' :
+           label === 'Moderate' ? 'Monitor closely. Address warnings before they escalate.' :
+           label === 'Low' ? 'System looks healthy. Keep an eye on trends.' :
+           'All clear. No significant risk detected.'}
+        </div>
         {riskScore.labels.length > 0 && (
           <>
             <h3 className="text-lg font-bold text-white mb-3">Risk Factors</h3>

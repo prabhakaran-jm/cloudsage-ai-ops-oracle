@@ -5,6 +5,7 @@ import { sendSuccess, sendError } from '../utils/response';
 import { getProjectRiskScore } from '../services/riskLogic';
 import { calculateRiskScoreFromVultr } from '../services/vultrClient';
 import { smartSQL } from '../services/raindropSmart';
+import { getUserIdFromAuthHeader } from './auth';
 
 // Fallback in-memory project store (used if SmartSQL unavailable)
 const projects: Map<string, {
@@ -134,26 +135,8 @@ async function deleteProjectFromDB(projectId: string): Promise<void> {
   projects.delete(projectId);
 }
 
-// Extract user ID from token (simplified for MVP)
-function getUserIdFromToken(req: IncomingMessage): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  // For MVP, we'll use a simple format: userId is in the token
-  // In production, decode JWT properly
-  try {
-    const token = authHeader.substring(7);
-    const decoded = Buffer.from(token, 'base64').toString('utf-8');
-    const userId = decoded.split(':')[0];
-    return userId || null;
-  } catch {
-    return null;
-  }
-}
-
-function requireAuth(req: IncomingMessage, res: ServerResponse): string | null {
-  const userId = getUserIdFromToken(req);
+async function requireAuth(req: IncomingMessage, res: ServerResponse): Promise<string | null> {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
   if (!userId) {
     sendError(res, 401, 'Unauthorized');
     return null;
@@ -162,7 +145,7 @@ function requireAuth(req: IncomingMessage, res: ServerResponse): string | null {
 }
 
 export async function handleGetProjects(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const userProjects = await getProjectsFromDB(userId);
@@ -178,7 +161,7 @@ export async function handleGetProjects(req: IncomingMessage, res: ServerRespons
 }
 
 export async function handleGetProject(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const url = req.url || '';
@@ -224,7 +207,7 @@ export async function handleGetProject(req: IncomingMessage, res: ServerResponse
 }
 
 export async function handleCreateProject(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   try {
@@ -257,7 +240,7 @@ export async function handleCreateProject(req: IncomingMessage, res: ServerRespo
 }
 
 export async function handleUpdateProject(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const url = req.url || '';
@@ -305,7 +288,7 @@ export async function handleUpdateProject(req: IncomingMessage, res: ServerRespo
 }
 
 export async function handleDeleteProject(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const url = req.url || '';

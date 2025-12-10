@@ -22,6 +22,10 @@ application "cloudsage_api" {
     secret = true
   }
 
+  env "JWT_SECRET" {
+    secret = true
+  }
+
   env "VULTR_WORKER_URL" {
     secret = true
   }
@@ -89,8 +93,7 @@ application "cloudsage_api" {
   // sql_database "app-db" {}
 
   // SmartSQL for AI-powered natural language queries
-  // Temporarily disabled due to foreign key constraint issues
-  // smartsql "main-db" {}
+  smartsql "main-db" {}
 
   // === Key-Value Storage ===
   // KV cache for fast key-value operations

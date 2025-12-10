@@ -41,7 +41,8 @@ export const INFERENCE_CHAINS: InferenceChainConfig[] = [
  */
 export async function runForecastInference(
   projectId: string,
-  date: string
+  date: string,
+  env?: any
 ): Promise<{
   forecastText: string;
   actions: string[];
@@ -50,7 +51,7 @@ export async function runForecastInference(
 } | null> {
   try {
     // Gather context data
-    const context = await gatherForecastContext(projectId);
+    const context = await gatherForecastContext(projectId, env);
     
     // Try SmartInference
     const result = await smartInference.run('forecast_generation', {
@@ -82,9 +83,9 @@ export async function runForecastInference(
 /**
  * Gather all context needed for forecast generation
  */
-async function gatherForecastContext(projectId: string) {
+async function gatherForecastContext(projectId: string, env?: any) {
   // Get risk history
-  const riskHistory = await getRiskHistory(projectId, 30);
+  const riskHistory = await getRiskHistory(projectId, 30, env);
   
   // Get project baseline from SmartMemory
   let projectContext = null;

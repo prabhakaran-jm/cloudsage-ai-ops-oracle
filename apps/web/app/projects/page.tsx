@@ -24,7 +24,14 @@ export default function ProjectsPage() {
     try {
       setLoading(true);
       const data = await apiClient.getProjects();
-      setProjects(data.projects);
+      // Dedupe by id in case backend returns both SQL + bucket entries
+      const map = new Map<string, Project>();
+      for (const p of data.projects || []) {
+        if (!map.has(p.id)) {
+          map.set(p.id, p);
+        }
+      }
+      setProjects(Array.from(map.values()));
     } catch (err: any) {
       if (err.message.includes('Unauthorized')) {
         router.push('/login');
@@ -45,7 +52,10 @@ export default function ProjectsPage() {
         newProjectName.trim(),
         newProjectDescription.trim() || undefined
       );
-      setProjects([...projects, data.project]);
+      // Dedupe client-side after create
+      const map = new Map<string, Project>();
+      [...projects, data.project].forEach(p => map.set(p.id, p));
+      setProjects(Array.from(map.values()));
       setNewProjectName('');
       setNewProjectDescription('');
       setShowCreateForm(false);
@@ -221,11 +231,7 @@ export default function ProjectsPage() {
                           {project.description || 'No description provided'}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold leading-none tracking-wide text-white/40 bg-white/5 px-2 py-1 rounded-full">
-                          No logs ingested yet
-                        </span>
-                      </div>
+                      {/* Badge removed: we can’t accurately state log presence from list response */}
                       <div className="flex-grow"></div>
                       <div className="flex items-center justify-between gap-4 mt-2">
                         <p className="text-white/40 text-xs font-normal">

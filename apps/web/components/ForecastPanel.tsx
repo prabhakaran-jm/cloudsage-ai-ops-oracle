@@ -5,9 +5,10 @@ import { Forecast } from '@/lib/apiClient';
 interface ForecastPanelProps {
   forecast: Forecast | null;
   loading?: boolean;
+  error?: string;
 }
 
-export default function ForecastPanel({ forecast, loading }: ForecastPanelProps) {
+export default function ForecastPanel({ forecast, loading, error }: ForecastPanelProps) {
   if (loading) {
     return (
       <div className="rounded-lg p-6 bg-gradient-to-br from-[#5048e5]/80 to-purple-600/80 backdrop-blur-lg border border-white/10">
@@ -21,7 +22,11 @@ export default function ForecastPanel({ forecast, loading }: ForecastPanelProps)
     return (
       <div className="rounded-lg p-6 bg-gradient-to-br from-[#5048e5]/80 to-purple-600/80 backdrop-blur-lg border border-white/10">
         <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">AI Forecast</h2>
-        <div className="text-white/70">No forecast available. Ingest some logs to generate a forecast.</div>
+        {error ? (
+          <div className="text-red-200">{error}</div>
+        ) : (
+          <div className="text-white/70">No forecast available. Ingest some logs to generate a forecast.</div>
+        )}
       </div>
     );
   }
@@ -65,7 +70,7 @@ export default function ForecastPanel({ forecast, loading }: ForecastPanelProps)
       </div>
 
       <div className="mt-6 pt-4 border-t border-white/20 text-xs text-white/50">
-        Generated: {new Date(forecast.generatedAt).toLocaleString()}
+        Last updated: {new Date(forecast.generatedAt).toLocaleString()}
       </div>
     </div>
   );

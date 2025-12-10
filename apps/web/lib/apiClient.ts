@@ -47,6 +47,20 @@ async function request<T>(
 }
 
 export const apiClient = {
+  // Health
+  async getApiHealth() {
+    return request<{ status: string; timestamp?: string }>('/health');
+  },
+  async getWorkerHealth(urlOverride?: string) {
+    const workerUrl = urlOverride || process.env.NEXT_PUBLIC_WORKER_HEALTH_URL;
+    if (!workerUrl) {
+      throw new Error('Worker health URL not configured');
+    }
+    const res = await fetch(workerUrl);
+    if (!res.ok) throw new Error(`Worker health failed: ${res.status}`);
+    return res.json();
+  },
+
   // Auth
   async register(email: string, password: string) {
     const data = await request<{ token: string; user: { id: string; email: string } }>(

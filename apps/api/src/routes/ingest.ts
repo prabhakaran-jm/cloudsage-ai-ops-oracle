@@ -6,6 +6,7 @@ import { calculateRiskScoreFromVultr } from '../services/vultrClient';
 import { getProjectRiskScore } from '../services/riskLogic';
 import { smartBuckets, smartSQL } from '../services/raindropSmart';
 import { updateProjectBaseline } from '../services/smartInferenceChains';
+import { getUserIdFromAuthHeader } from './auth';
 
 // Fallback in-memory log store (used if SmartBuckets unavailable)
 const logs: Map<string, Array<{
@@ -60,24 +61,8 @@ export async function getLogs(projectId: string, env?: any): Promise<any[]> {
   return logs.get(projectId) || [];
 }
 
-// Extract user ID from token
-function getUserIdFromToken(req: IncomingMessage): string | null {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return null;
-  }
-  try {
-    const token = authHeader.substring(7);
-    const decoded = Buffer.from(token, 'base64').toString('utf-8');
-    const userId = decoded.split(':')[0];
-    return userId || null;
-  } catch {
-    return null;
-  }
-}
-
-function requireAuth(req: IncomingMessage, res: ServerResponse): string | null {
-  const userId = getUserIdFromToken(req);
+async function requireAuth(req: IncomingMessage, res: ServerResponse): Promise<string | null> {
+  const userId = await getUserIdFromAuthHeader(req.headers.authorization);
   if (!userId) {
     sendError(res, 401, 'Unauthorized');
     return null;
@@ -86,7 +71,7 @@ function requireAuth(req: IncomingMessage, res: ServerResponse): string | null {
 }
 
 export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   try {
@@ -236,7 +221,7 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
 }
 
 export async function handleGetLogs(req: IncomingMessage, res: ServerResponse) {
-  const userId = requireAuth(req, res);
+  const userId = await requireAuth(req, res);
   if (!userId) return;
 
   const url = req.url || '';

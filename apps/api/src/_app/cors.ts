@@ -1,4 +1,4 @@
-import { corsAllowAll } from '@liquidmetal-ai/raindrop-framework/core/cors';
+import { createCorsHandler } from '@liquidmetal-ai/raindrop-framework/core/cors';
 
 /**
  * cors is the application-wide CORS (Cross-Origin Resource Sharing) handler.
@@ -66,4 +66,18 @@ import { corsAllowAll } from '@liquidmetal-ai/raindrop-framework/core/cors';
  * };
  * ```
  */
-export const cors = corsAllowAll;
+const allowedOrigins = new Set([
+  'https://steady-melomakarona-42c054.netlify.app',
+]);
+
+export const cors = createCorsHandler({
+  origin: (request) => {
+    const origin = request.headers.get('origin') || '';
+    if (allowedOrigins.has(origin)) return origin;
+    // Allow Netlify previews: https://<sub>.netlify.app
+    if (/^https:\/\/[a-zA-Z0-9-]+\.netlify\.app$/.test(origin)) return origin;
+    return null;
+  },
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+});

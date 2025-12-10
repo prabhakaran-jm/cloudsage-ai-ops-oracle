@@ -28,16 +28,20 @@ export default function ProjectDetailPage() {
   const [riskHistory, setRiskHistory] = useState<RiskHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [forecastLoading, setForecastLoading] = useState(false);
+  const [forecastError, setForecastError] = useState('');
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [apiStatus, setApiStatus] = useState<'ok' | 'degraded' | 'down'>('degraded');
+  const [workerStatus, setWorkerStatus] = useState<'ok' | 'degraded' | 'down'>('degraded');
 
   useEffect(() => {
     if (projectId) {
       loadProject();
       loadForecast();
       loadRiskHistory();
+      checkHealth();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
@@ -79,11 +83,12 @@ export default function ProjectDetailPage() {
   const loadForecast = async () => {
     try {
       setForecastLoading(true);
+      setForecastError('');
       const data = await apiClient.getForecast(projectId);
       setForecast(data.forecast);
     } catch (err: any) {
       console.error('Failed to load forecast:', err);
-      // Don't show error for forecast, it's optional
+      setForecastError(err.message || 'Failed to load forecast');
     } finally {
       setForecastLoading(false);
     }
@@ -112,6 +117,27 @@ export default function ProjectDetailPage() {
 
     loadForecast();
     loadRiskHistory();
+  };
+
+  const checkHealth = async () => {
+    try {
+      const api = await apiClient.getApiHealth();
+      setApiStatus(api.status === 'ok' ? 'ok' : 'degraded');
+    } catch {
+      setApiStatus('down');
+    }
+    try {
+      await apiClient.getWorkerHealth(process.env.NEXT_PUBLIC_WORKER_HEALTH_URL);
+      setWorkerStatus('ok');
+    } catch {
+      setWorkerStatus('degraded');
+    }
+  };
+
+  const badgeClass = (status: string) => {
+    if (status === 'ok') return 'bg-green-500/20 text-green-200 border-green-500/40';
+    if (status === 'degraded') return 'bg-amber-500/20 text-amber-200 border-amber-500/40';
+    return 'bg-red-500/20 text-red-200 border-red-500/40';
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -245,18 +271,36 @@ export default function ProjectDetailPage() {
                 {error}
               </div>
             )}
+            <div className="flex flex-wrap gap-3 text-xs">
+              <span className={`px-3 py-1 rounded-full border ${badgeClass(apiStatus)}`}>
+                API: {apiStatus.toUpperCase()}
+              </span>
+              <span className={`px-3 py-1 rounded-full border ${badgeClass(workerStatus)}`}>
+                Worker: {workerStatus.toUpperCase()}
+              </span>
+              {riskScoreTimestamp && (
+                <span className="px-3 py-1 rounded-full border border-white/10 text-white/60">
+                  Risk updated: {new Date(riskScoreTimestamp).toLocaleString()}
+                </span>
+              )}
+              {forecast?.generatedAt && (
+                <span className="px-3 py-1 rounded-full border border-white/10 text-white/60">
+                  Forecast updated: {new Date(forecast.generatedAt).toLocaleString()}
+                </span>
+              )}
+            </div>
 
             {/* Main Content Grid */}
             <main className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {/* Risk Dashboard */}
               <div className="md:col-span-3 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10">
                 <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-6">Risk Dashboard</h2>
-                <RiskPanel riskScore={riskScore} loading={loading} />
+                <RiskPanel riskScore={riskScore} loading={loading} updatedAt={riskScoreTimestamp} />
               </div>
 
               {/* AI Forecast */}
               <div className="md:col-span-3">
-                <ForecastPanel forecast={forecast} loading={forecastLoading} />
+                <ForecastPanel forecast={forecast} loading={forecastLoading} error={forecastError} />
               </div>
 
               {/* Action Items */}
