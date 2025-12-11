@@ -2,17 +2,18 @@
 // Supports both WorkOS SSO and legacy JWT auth
 
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import type { NextRequest, NextFetchEvent } from 'next/server';
 import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
 
 // Check if WorkOS is configured
 const WORKOS_ENABLED = process.env.WORKOS_CLIENT_ID && process.env.WORKOS_API_KEY;
 
-export default async function middleware(request: NextRequest) {
+export default async function middleware(request: NextRequest, event: NextFetchEvent) {
   // If WorkOS is configured, use AuthKit middleware for protected routes
   if (WORKOS_ENABLED) {
     // Let WorkOS handle auth for protected routes
-    return authkitMiddleware()(request);
+    // authkitMiddleware() returns a function that expects (request, event)
+    return authkitMiddleware()(request, event);
   }
   
   // Fallback: check for legacy JWT token
