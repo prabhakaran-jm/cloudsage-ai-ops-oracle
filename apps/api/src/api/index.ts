@@ -1255,18 +1255,12 @@ export default class extends Service<Env> {
       // Initialize SmartSQL tables once if MAIN_DB is available
       if (actualEnv?.MAIN_DB && !dbInitialized) {
         try {
-          // Fast guard: if users table already exists, skip heavy init
-          await actualEnv.MAIN_DB.executeQuery({ sqlQuery: 'SELECT 1 FROM users LIMIT 1', format: 'json' });
-          dbInitialized = true;
-          globalAny[DB_INIT_FLAG] = true;
-        } catch {
-          try {
-            const ok = await initDatabase(actualEnv.MAIN_DB);
-            dbInitialized = ok;
-            if (ok) globalAny[DB_INIT_FLAG] = true;
-          } catch (e) {
-            console.warn('[CloudSage] DB init failed, continuing with fallbacks:', e);
-          }
+          // Always run init to ensure schemas + unique index; idempotent via IF NOT EXISTS
+          const ok = await initDatabase(actualEnv.MAIN_DB);
+          dbInitialized = ok;
+          if (ok) globalAny[DB_INIT_FLAG] = true;
+        } catch (e) {
+          console.warn('[CloudSage] DB init failed, continuing with fallbacks:', e);
         }
       }
 
