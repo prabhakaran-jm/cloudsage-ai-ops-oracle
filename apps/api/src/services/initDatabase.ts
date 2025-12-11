@@ -9,7 +9,7 @@ export async function initDatabase(db: any): Promise<boolean> {
 
     try {
       await db.executeQuery({
-        textQuery: `CREATE TABLE IF NOT EXISTS users (
+        sqlQuery: `CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
@@ -25,7 +25,7 @@ export async function initDatabase(db: any): Promise<boolean> {
 
     try {
       await db.executeQuery({
-        textQuery: `CREATE TABLE IF NOT EXISTS projects (
+        sqlQuery: `CREATE TABLE IF NOT EXISTS projects (
           id TEXT PRIMARY KEY,
           user_id TEXT NOT NULL,
           name TEXT NOT NULL,
@@ -42,7 +42,7 @@ export async function initDatabase(db: any): Promise<boolean> {
 
     try {
       await db.executeQuery({
-        textQuery: `CREATE TABLE IF NOT EXISTS risk_history (
+        sqlQuery: `CREATE TABLE IF NOT EXISTS risk_history (
           id TEXT PRIMARY KEY,
           project_id TEXT NOT NULL,
           score INTEGER NOT NULL,
