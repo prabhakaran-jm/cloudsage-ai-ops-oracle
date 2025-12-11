@@ -225,7 +225,7 @@ async function handleCallback(req: NextRequest) {
     // This ensures that when the user logs out and tries to log in again, they'll be prompted for credentials
     try {
       console.log('[WorkOS Callback] Revoking all existing sessions for user:', user.id);
-      const sessions = await workos.userManagement.listSessions({ userId: user.id });
+      const sessions = await workos.userManagement.listSessions(user.id);
       
       if (sessions.data && sessions.data.length > 0) {
         console.log(`[WorkOS Callback] Found ${sessions.data.length} active session(s), revoking...`);
