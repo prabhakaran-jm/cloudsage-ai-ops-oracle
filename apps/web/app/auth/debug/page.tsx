@@ -113,13 +113,27 @@ export default function WorkOSDebugPage() {
           </div>
 
           <div className="mt-8 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-            <h3 className="font-semibold text-amber-200 mb-2">WorkOS Dashboard Checklist:</h3>
+            <h3 className="font-semibold text-amber-200 mb-2">WorkOS Dashboard Setup Checklist:</h3>
             <ol className="list-decimal list-inside space-y-1 text-sm text-amber-200/80">
-              <li>Organization created and active</li>
-              <li>Your email added to the organization</li>
-              <li>Redirect URI added: <code className="bg-black/30 px-1 rounded">{redirectUri || 'https://your-app.netlify.app/api/auth/callback'}</code></li>
-              <li>Authentication method enabled (Email Magic Link recommended)</li>
-              <li>Application linked to organization (check Organization settings)</li>
+              <li>
+                <strong>Application created</strong> - If you see a Client ID (like <code className="bg-black/30 px-1 rounded text-xs">client_01...</code>), you have one. 
+                Otherwise, go to <a href="https://dashboard.workos.com/developer/api-keys" target="_blank" rel="noopener noreferrer" className="underline text-amber-100">API Keys</a> to get your Client ID and API Key.
+              </li>
+              <li>
+                <strong>Organization created</strong> - Go to <a href="https://dashboard.workos.com/organizations" target="_blank" rel="noopener noreferrer" className="underline text-amber-100">Organizations</a> and create one if needed.
+              </li>
+              <li>
+                <strong>Redirect URI added</strong> - Go to <a href="https://dashboard.workos.com/configuration/authentication" target="_blank" rel="noopener noreferrer" className="underline text-amber-100">Configuration → Authentication</a> and add: <code className="bg-black/30 px-1 rounded text-xs">{redirectUri || 'https://your-app.netlify.app/api/auth/callback'}</code>
+              </li>
+              <li>
+                <strong>Authentication method enabled</strong> - In <a href="https://dashboard.workos.com/configuration/authentication" target="_blank" rel="noopener noreferrer" className="underline text-amber-100">Authentication settings</a>, enable &quot;Email Magic Link&quot;
+              </li>
+              <li>
+                <strong>Your email added to organization</strong> - Go to <a href="https://dashboard.workos.com/organizations" target="_blank" rel="noopener noreferrer" className="underline text-amber-100">Organizations</a> → Your Org → Members → Add User
+              </li>
+              <li>
+                <strong>Environment variables set in Netlify</strong> - WORKOS_CLIENT_ID, WORKOS_API_KEY, WORKOS_COOKIE_PASSWORD, WORKOS_REDIRECT_URI, NEXT_PUBLIC_WORKOS_ENABLED
+              </li>
             </ol>
           </div>
 

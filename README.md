@@ -101,34 +101,64 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
   - Generate with: `openssl rand -base64 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
 
 **WorkOS Dashboard Setup (Required):**
+
+### Step 1: Create an Application (if you don't have one)
 1. Go to https://dashboard.workos.com
-2. **Create an Organization:**
-   - Click "Organizations" → "Create Organization"
-   - Name it (e.g., "CloudSage Users")
-   - **Important:** Note the Organization ID
-3. **Link Organization to Application:**
-   - Go to your Application settings
-   - Navigate to "Organizations" tab
-   - Ensure your organization is listed/linked to the application
-   - If not, you may need to add it or set it as default
-4. **Add Redirect URI:**
-   - In Application settings → "Redirect URIs"
-   - Add exactly: `https://steady-melomakarona-42c054.netlify.app/api/auth/callback`
-   - Must match EXACTLY (including `https://` and no trailing slash)
-5. **Add Users:**
-   - Go to Organizations → Your Organization → "Members"
-   - Click "Add User" or "Invite User"
-   - Add your email address
-6. **Enable Authentication:**
-   - Go to Authentication settings
+2. If you see the "Let's get started" page, you need to create an application:
+   - Click on "Developer" in the left sidebar → "API Keys"
+   - Or go directly to: https://dashboard.workos.com/developer/api-keys
+   - Your **Client ID** and **API Key** are shown here
+   - **Copy these values** - you'll need them for Netlify environment variables
+3. If you already have a Client ID (like `client_01KB6F849F...`), you can skip to Step 2
+
+### Step 2: Create an Organization
+1. Click "Organizations" in the left sidebar
+2. Click "Create Organization"
+3. Name it (e.g., "CloudSage Users")
+4. **Important:** Note the Organization ID (you'll see it in the URL or organization details)
+
+### Step 3: Configure Your Application
+1. Go to "Configuration" → "Authentication" in the left sidebar
+2. **Add Redirect URI:**
+   - Scroll to "Redirect URIs" section
+   - Click "Add Redirect URI"
+   - Enter exactly: `https://steady-melomakarona-42c054.netlify.app/api/auth/callback`
+   - **Must match EXACTLY** (including `https://` and no trailing slash)
+   - Click "Save"
+3. **Enable Authentication Method:**
+   - In the same Authentication page, find "Authentication Methods"
    - Enable "Email Magic Link" (easiest for testing)
-   - Or configure OAuth providers
+   - Or configure OAuth providers (Google, Microsoft, etc.)
+
+### Step 4: Link Organization to Application
+1. Go to "Organizations" → Click on your organization
+2. Check that it's active and properly configured
+3. The organization should automatically be available to your application
+
+### Step 5: Add Users to Organization
+1. Go to "Organizations" → Your Organization → "Members" tab
+2. Click "Add User" or "Invite User"
+3. Add your email address
+4. The user will receive an invitation (if using invite) or can sign in immediately (if using Email Magic Link)
+
+### Step 6: Set Environment Variables in Netlify
+1. Go to your Netlify site dashboard
+2. Site settings → Environment variables
+3. Add these variables:
+   - `WORKOS_CLIENT_ID` = Your Client ID (from Step 1)
+   - `WORKOS_API_KEY` = Your API Key (from Step 1)
+   - `WORKOS_REDIRECT_URI` = `https://steady-melomakarona-42c054.netlify.app/api/auth/callback`
+   - `WORKOS_COOKIE_PASSWORD` = Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+   - `NEXT_PUBLIC_WORKOS_ENABLED` = `true`
+4. **Redeploy your site** after adding environment variables
 
 **Troubleshooting:**
-- "Couldn't sign in" error → **Most common cause:** Organization not linked to application. Check Application → Organizations tab.
-- Redirect URI mismatch → Verify the URI matches EXACTLY (case-sensitive, no trailing slash)
-- User not found → Ensure your email is added to the organization
-- Cookie password error → Generate a new 32+ character password
+- **500 Error on sign-in** → Most likely: Application not created or environment variables not set in Netlify
+- **"Couldn't sign in" error** → **Most common cause:** Organization not created or user not added to organization
+- **Redirect URI mismatch** → Verify the URI matches EXACTLY (case-sensitive, no trailing slash) in WorkOS dashboard
+- **User not found** → Ensure your email is added to the organization (Step 5)
+- **Cookie password error** → Generate a new 32+ character password: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+- **Environment variables not working** → Make sure you redeployed Netlify after adding them
 - **Quick test:** Visit `/auth/debug` for diagnostics
 
 ---
