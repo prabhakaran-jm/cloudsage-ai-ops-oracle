@@ -221,6 +221,34 @@ async function handleCallback(req: NextRequest) {
       hasSealedSession: !!sealedSession,
     });
     
+    // CRITICAL: Revoke all existing sessions for this user to prevent auto-login issues
+    // This ensures that when the user logs out and tries to log in again, they'll be prompted for credentials
+    try {
+      console.log('[WorkOS Callback] Revoking all existing sessions for user:', user.id);
+      const sessions = await workos.userManagement.listSessions({ userId: user.id });
+      
+      if (sessions.data && sessions.data.length > 0) {
+        console.log(`[WorkOS Callback] Found ${sessions.data.length} active session(s), revoking...`);
+        for (const session of sessions.data) {
+          try {
+            await workos.userManagement.revokeSession({ sessionId: session.id });
+            console.log(`[WorkOS Callback] Revoked session: ${session.id}`);
+          } catch (revokeError: any) {
+            console.warn(`[WorkOS Callback] Failed to revoke session ${session.id}:`, revokeError?.message);
+          }
+        }
+        console.log('[WorkOS Callback] ✅ All existing sessions revoked');
+      } else {
+        console.log('[WorkOS Callback] No existing sessions found for user');
+      }
+    } catch (sessionError: any) {
+      // Log but don't fail - this is a best-effort cleanup
+      console.warn('[WorkOS Callback] Failed to revoke existing sessions (non-critical):', {
+        message: sessionError?.message,
+        error: sessionError,
+      });
+    }
+    
     // Exchange WorkOS user for backend JWT token
     // Use server-side env var or fallback to known API URL
     // Note: API_BASE_URL should include /api (e.g., https://api.example.com/api)
