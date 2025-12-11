@@ -281,6 +281,11 @@ app.get('/health', (c: Context<{ Bindings: AppEnv }>) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// API health for badges (alias)
+app.get('/api/health', (c: Context<{ Bindings: AppEnv }>) => {
+  return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 app.get('/api/hello', (c: Context<{ Bindings: AppEnv }>) => {
   return c.json({ 
     status: 'ok',
@@ -1182,7 +1187,7 @@ async function initDatabase(db: any): Promise<boolean> {
     // Wrap each in try-catch to handle existing tables gracefully
     try {
       await db.executeQuery({
-        textQuery: `CREATE TABLE IF NOT EXISTS users (
+        sql: `CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
@@ -1197,7 +1202,7 @@ async function initDatabase(db: any): Promise<boolean> {
 
     try {
       await db.executeQuery({
-        textQuery: `CREATE TABLE IF NOT EXISTS projects (
+        sql: `CREATE TABLE IF NOT EXISTS projects (
           id TEXT PRIMARY KEY,
           user_id TEXT NOT NULL,
           name TEXT NOT NULL,
@@ -1209,7 +1214,7 @@ async function initDatabase(db: any): Promise<boolean> {
       });
       // Unique index to prevent duplicate project names per user
       await db.executeQuery({
-        textQuery: `CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_user_name ON projects(user_id, name)`,
+        sql: `CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_user_name ON projects(user_id, name)`,
         format: 'json'
       });
     } catch (e) {
@@ -1218,7 +1223,7 @@ async function initDatabase(db: any): Promise<boolean> {
 
     try {
       await db.executeQuery({
-        textQuery: `CREATE TABLE IF NOT EXISTS risk_history (
+        sql: `CREATE TABLE IF NOT EXISTS risk_history (
           id TEXT PRIMARY KEY,
           project_id TEXT NOT NULL,
           score INTEGER NOT NULL,
