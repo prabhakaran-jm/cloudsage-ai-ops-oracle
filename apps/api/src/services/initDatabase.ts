@@ -5,9 +5,9 @@ export async function initDatabase(db: any): Promise<boolean> {
   try {
     console.log('[CloudSage] Initializing database tables...');
 
-    // Create tables using SmartSQL executeQuery with textQuery
+    // Create tables using SmartSQL executeQuery with sql (positional params supported)
     await db.executeQuery({
-      textQuery: `CREATE TABLE IF NOT EXISTS users (
+      sql: `CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
@@ -18,7 +18,7 @@ export async function initDatabase(db: any): Promise<boolean> {
     });
 
     await db.executeQuery({
-      textQuery: `CREATE TABLE IF NOT EXISTS projects (
+      sql: `CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
@@ -30,7 +30,7 @@ export async function initDatabase(db: any): Promise<boolean> {
     });
 
     await db.executeQuery({
-      textQuery: `CREATE TABLE IF NOT EXISTS risk_history (
+      sql: `CREATE TABLE IF NOT EXISTS risk_history (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL,
         score INTEGER NOT NULL,
