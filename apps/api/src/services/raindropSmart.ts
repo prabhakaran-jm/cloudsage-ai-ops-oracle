@@ -458,9 +458,9 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
-        // Use sqlQuery for direct SQL with positional params
+        // Use sql for D1-compatible positional params
         const result = await mainDb.executeQuery({
-          sqlQuery: sql,
+          sql,
           params,
           format: 'json',
         });
@@ -504,9 +504,9 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
-        // Use sqlQuery for direct SQL with positional params
+        // Use sql for D1-compatible positional params
         const result = await mainDb.executeQuery({
-          sqlQuery: sql,
+          sql,
           params,
           format: 'json',
         });
