@@ -130,10 +130,14 @@ async function handleSignIn(req: NextRequest) {
       state: `force_auth_${Date.now()}`,
     });
     
-    // Append prompt=login to force re-authentication (OAuth2 standard)
-    // This tells WorkOS to always prompt for credentials, ignoring any existing session
+    // Append OAuth2 parameters to force re-authentication (OAuth2 standard)
+    // - prompt=login: Forces WorkOS to always prompt for credentials
+    // - max_age=0: Treats any existing session as expired, forcing immediate re-auth
+    // - login_hint=: Empty login hint to prevent email pre-filling
     const url = new URL(authorizationUrl);
     url.searchParams.set('prompt', 'login');
+    url.searchParams.set('max_age', '0'); // Force immediate re-authentication
+    url.searchParams.set('login_hint', ''); // Clear any pre-filled email
     authorizationUrl = url.toString();
     
     // Clear any existing WorkOS session cookie
