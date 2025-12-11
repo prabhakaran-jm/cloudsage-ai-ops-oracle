@@ -69,7 +69,58 @@ export default function ForecastPanel({ forecast, loading, error }: ForecastPane
         </ol>
       </div>
 
-      <div className="mt-6 pt-4 border-t border-white/20 text-xs text-white/50">
+      {/* AI Reasoning Panel - Shows how CloudSage thinks */}
+      {forecast.aiReasoning && (
+        <div className="mt-6 pt-4 border-t border-white/20">
+          <details className="group">
+            <summary className="flex items-center gap-2 cursor-pointer text-sm font-medium text-white/70 hover:text-white transition-colors">
+              <svg className="w-4 h-4 transition-transform group-open:rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <span>🧠 View AI Reasoning</span>
+              <span className="text-xs px-2 py-0.5 bg-white/10 rounded-full">
+                {forecast.aiReasoning.dataPointsAnalyzed} data points analyzed
+              </span>
+            </summary>
+            <div className="mt-4 pl-6 space-y-4">
+              {/* Input Signals */}
+              <div>
+                <h5 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-2">Input Signals</h5>
+                <div className="flex flex-wrap gap-2">
+                  {forecast.aiReasoning.inputSignals.map((signal, i) => (
+                    <span key={i} className="text-xs px-2 py-1 bg-white/10 rounded-lg text-white/80">
+                      {signal}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Analysis Steps */}
+              <div>
+                <h5 className="text-xs font-semibold text-white/60 uppercase tracking-wider mb-2">Analysis Pipeline</h5>
+                <div className="flex flex-wrap items-center gap-1 text-xs text-white/70">
+                  {forecast.aiReasoning.analysisSteps.map((step, i) => (
+                    <span key={i} className="flex items-center">
+                      <span className="px-2 py-1 bg-purple-500/20 rounded text-purple-200">{step}</span>
+                      {i < forecast.aiReasoning!.analysisSteps.length - 1 && (
+                        <span className="mx-1 text-white/40">→</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Model Info */}
+              <div className="flex items-center gap-2 text-xs text-white/50">
+                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span>Powered by {forecast.aiReasoning.modelUsed}</span>
+              </div>
+            </div>
+          </details>
+        </div>
+      )}
+
+      <div className="mt-4 pt-4 border-t border-white/20 text-xs text-white/50">
         Last updated: {new Date(forecast.generatedAt).toLocaleString()}
       </div>
     </div>

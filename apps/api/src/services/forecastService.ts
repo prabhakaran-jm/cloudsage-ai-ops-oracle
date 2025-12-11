@@ -14,6 +14,12 @@ export interface Forecast {
   riskScore: number;
   confidence: number; // 0-100
   generatedAt: string;
+  aiReasoning?: {
+    inputSignals: string[];
+    analysisSteps: string[];
+    modelUsed: string;
+    dataPointsAnalyzed: number;
+  };
 }
 
 export interface ForecastContext {
@@ -86,6 +92,7 @@ export async function generateForecast(
     riskScore: currentScore,
     confidence: aiResult.confidence,
     generatedAt: new Date().toISOString(),
+    aiReasoning: aiResult.aiReasoning,
   };
 }
 

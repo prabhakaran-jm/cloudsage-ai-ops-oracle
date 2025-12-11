@@ -182,6 +182,12 @@ export interface Forecast {
   riskScore: number;
   confidence: number;
   generatedAt: string;
+  aiReasoning?: {
+    inputSignals: string[];
+    analysisSteps: string[];
+    modelUsed: string;
+    dataPointsAnalyzed: number;
+  };
 }
 
 export interface RiskHistoryEntry {
