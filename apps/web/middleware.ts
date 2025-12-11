@@ -6,14 +6,32 @@ import type { NextRequest, NextFetchEvent } from 'next/server';
 import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
 
 // Check if WorkOS is configured
-const WORKOS_ENABLED = process.env.WORKOS_CLIENT_ID && process.env.WORKOS_API_KEY;
+const WORKOS_CLIENT_ID = process.env.WORKOS_CLIENT_ID;
+const WORKOS_API_KEY = process.env.WORKOS_API_KEY;
+const WORKOS_REDIRECT_URI = process.env.WORKOS_REDIRECT_URI;
+const WORKOS_ENABLED = WORKOS_CLIENT_ID && WORKOS_API_KEY;
 
 export default async function middleware(request: NextRequest, event: NextFetchEvent) {
   // If WorkOS is configured, use AuthKit middleware for protected routes
   if (WORKOS_ENABLED) {
+    // Configure WorkOS AuthKit
+    // redirectUri must be provided and match WorkOS dashboard configuration
+    const workosConfig: any = {};
+    
+    // Set redirect URI explicitly (required by WorkOS)
+    if (WORKOS_REDIRECT_URI) {
+      workosConfig.redirectUri = WORKOS_REDIRECT_URI;
+    } else {
+      // Fallback: construct from request URL
+      const origin = request.nextUrl.origin;
+      workosConfig.redirectUri = `${origin}/api/auth/callback`;
+    }
+    
+    const workosMiddleware = authkitMiddleware(workosConfig);
+    
     // Let WorkOS handle auth for protected routes
     // authkitMiddleware() returns a function that expects (request, event)
-    return authkitMiddleware()(request, event);
+    return workosMiddleware(request, event);
   }
   
   // Fallback: check for legacy JWT token
