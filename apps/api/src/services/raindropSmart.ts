@@ -91,6 +91,46 @@ async function mcpRequest(method: string, params: any, env?: any): Promise<any> 
   }
 }
 
+/**
+ * Escape a value for safe SQL interpolation
+ * This is used because Raindrop SmartSQL executeQuery doesn't support parameterized queries
+ */
+function escapeSqlValue(value: any): string {
+  if (value === null || value === undefined) {
+    return 'NULL';
+  }
+  if (typeof value === 'number') {
+    return String(value);
+  }
+  if (typeof value === 'boolean') {
+    return value ? '1' : '0';
+  }
+  // String: escape single quotes by doubling them
+  const str = String(value);
+  return `'${str.replace(/'/g, "''")}'`;
+}
+
+/**
+ * Interpolate SQL parameters into the query string
+ * Replaces ? or ?N placeholders with properly escaped values
+ */
+function interpolateSqlParams(sql: string, params: any[]): string {
+  if (!params || params.length === 0) {
+    return sql;
+  }
+  
+  let paramIndex = 0;
+  // Replace ?N (numbered) or ? (positional) placeholders
+  return sql.replace(/\?(\d+)?/g, (match, num) => {
+    const index = num ? parseInt(num, 10) - 1 : paramIndex++;
+    if (index >= params.length) {
+      console.warn(`[SmartSQL] Missing parameter at index ${index}`);
+      return 'NULL';
+    }
+    return escapeSqlValue(params[index]);
+  });
+}
+
 // SmartBuckets wrapper
 // Uses native Raindrop SmartBucket API when available (in Raindrop runtime)
 // Falls back to MCP for local development
@@ -458,13 +498,11 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
-        // Use sqlQuery for direct SQL execution with args for D1 params
-        // Try multiple param names to find what Raindrop expects
+        // Raindrop SmartSQL doesn't seem to support parameterized queries via executeQuery
+        // Interpolate values directly with proper escaping
+        const interpolatedSql = interpolateSqlParams(sql, params);
         const result = await mainDb.executeQuery({
-          sqlQuery: sql,
-          args: params,
-          params: params,
-          bindings: params,
+          sqlQuery: interpolatedSql,
           format: 'json',
         });
         const rows = result?.rows || [];
@@ -507,13 +545,11 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
-        // Use sqlQuery for direct SQL execution with args for D1 params
-        // Try multiple param names to find what Raindrop expects
+        // Raindrop SmartSQL doesn't seem to support parameterized queries via executeQuery
+        // Interpolate values directly with proper escaping
+        const interpolatedSql = interpolateSqlParams(sql, params);
         const result = await mainDb.executeQuery({
-          sqlQuery: sql,
-          args: params,
-          params: params,
-          bindings: params,
+          sqlQuery: interpolatedSql,
           format: 'json',
         });
         const affectedRows = result?.affectedRows || result?.rowCount || 0;
