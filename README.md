@@ -94,11 +94,20 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 - Free tier: up to 1M monthly active users
 
 **Required Environment Variables:**
+
+### WorkOS (Authentication)
 - `WORKOS_CLIENT_ID` - Your WorkOS client ID
 - `WORKOS_API_KEY` - Your WorkOS API key
 - `WORKOS_REDIRECT_URI` - Callback URL (e.g., `https://your-app.netlify.app/api/auth/callback`)
 - `WORKOS_COOKIE_PASSWORD` - **Required**: At least 32 characters for session encryption
   - Generate with: `openssl rand -base64 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+
+### Stripe (Payments - Optional)
+- `STRIPE_SECRET_KEY` - Your Stripe secret key (starts with `sk_`)
+- `STRIPE_PUBLISHABLE_KEY` - Your Stripe publishable key (starts with `pk_`)
+- `STRIPE_WEBHOOK_SECRET` - Webhook signing secret (for production)
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Same as `STRIPE_PUBLISHABLE_KEY` (for frontend)
+- `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID` - Stripe Price ID for Pro plan (starts with `price_`)
 
 **WorkOS Dashboard Setup (Required):**
 
@@ -152,6 +161,30 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 3. The organization should automatically be available to your AuthKit application
 
 ### Step 6: Add Users to Organization
+
+**Stripe Setup (Optional - for Pricing Page):**
+
+1. Go to https://dashboard.stripe.com
+2. Create a Stripe account (or use test mode)
+3. Get your API keys:
+   - **Publishable Key**: Dashboard → Developers → API keys → Publishable key
+   - **Secret Key**: Dashboard → Developers → API keys → Secret key
+4. Create a Product and Price:
+   - Go to Products → Add Product
+   - Name: "CloudSage Pro"
+   - Pricing: $29/month (recurring)
+   - Copy the **Price ID** (starts with `price_`)
+5. Set up Webhook (for production):
+   - Go to Developers → Webhooks
+   - Add endpoint: `https://your-app.netlify.app/api/webhooks/stripe`
+   - Select events: `checkout.session.completed`, `customer.subscription.*`, `invoice.*`
+   - Copy the **Signing secret**
+6. Add environment variables to Netlify:
+   - `STRIPE_SECRET_KEY` - Your secret key
+   - `STRIPE_PUBLISHABLE_KEY` - Your publishable key
+   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Same as publishable key
+   - `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID` - Your Pro plan price ID
+   - `STRIPE_WEBHOOK_SECRET` - Webhook signing secret (production only)
 1. Go to "Organizations" → Your Organization → "Members" tab
 2. Click "Add User" or "Invite User"
 3. Add your email address

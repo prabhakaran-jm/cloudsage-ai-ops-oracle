@@ -10,7 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@liquidmetal-ai/raindrop-framework": "0.12.0",
+    "@liquidmetal-ai/raindrop-framework": "0.13.0",
     "dotenv": "^17.2.3",
     "hono": "^4.10.7",
     "jose": "^5.8.0",

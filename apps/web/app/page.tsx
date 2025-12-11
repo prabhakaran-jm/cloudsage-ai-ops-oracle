@@ -66,6 +66,12 @@ export default function Home() {
                     <span className="truncate">Get Started</span>
                   </Link>
                   <Link
+                    href="/pricing"
+                    className="flex min-w-[160px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-white/10 text-white text-base font-bold leading-normal tracking-[0.015em] transition-colors hover:bg-white/20"
+                  >
+                    <span className="truncate">View Pricing</span>
+                  </Link>
+                  <Link
                     href="/login"
                     className="flex min-w-[160px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-white/10 text-white text-base font-bold leading-normal tracking-[0.015em] transition-colors hover:bg-white/20"
                   >
