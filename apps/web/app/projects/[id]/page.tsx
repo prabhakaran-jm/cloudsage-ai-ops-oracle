@@ -80,11 +80,11 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const loadForecast = async () => {
+  const loadForecast = async (force?: boolean) => {
     try {
       setForecastLoading(true);
       setForecastError('');
-      const data = await apiClient.getForecast(projectId);
+      const data = await apiClient.getForecast(projectId, undefined, force);
       setForecast(data.forecast);
     } catch (err: any) {
       console.error('Failed to load forecast:', err);
@@ -98,8 +98,10 @@ export default function ProjectDetailPage() {
     try {
       const data = await apiClient.getRiskHistory(projectId, 30);
       setRiskHistory(data.history);
+      return data.history;
     } catch (err: any) {
       console.error('Failed to load risk history:', err);
+      return [];
     }
   };
 
@@ -123,8 +125,19 @@ export default function ProjectDetailPage() {
       loadProject();
     }
 
-    // Always refresh forecast and history to reflect latest context; await to reduce race flicker
-    await Promise.all([loadForecast(), loadRiskHistory()]);
+    // Always refresh forecast (force regenerate) and history to reflect latest context
+    const [history] = await Promise.all([loadRiskHistory(), loadForecast(true)]);
+
+    // Ensure optimistic entry remains if API response did not yet include it
+    if (newRiskScore && !history.some((h) => h.timestamp === newRiskScore.timestamp)) {
+      setRiskHistory((prev) => {
+        const next = [
+          { score: newRiskScore.score, timestamp: newRiskScore.timestamp, labels: newRiskScore.labels || [] },
+          ...prev,
+        ];
+        return next.slice(0, 30);
+      });
+    }
   };
 
   const checkHealth = async () => {

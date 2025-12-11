@@ -141,10 +141,12 @@ export const apiClient = {
   },
 
   // Forecasts
-  async getForecast(projectId: string, date?: string) {
-    const url = date 
-      ? `/forecast/${projectId}?date=${date}`
-      : `/forecast/${projectId}`;
+  async getForecast(projectId: string, date?: string, force?: boolean) {
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
+    if (force) params.set('force', '1');
+    const qs = params.toString();
+    const url = qs ? `/forecast/${projectId}?${qs}` : `/forecast/${projectId}`;
     return request<{ forecast: Forecast }>(url);
   },
 

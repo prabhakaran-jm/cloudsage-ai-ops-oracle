@@ -1040,15 +1040,16 @@ app.get('/api/forecast/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
       return c.json({ error: 'Invalid query', details: parsedQuery.error.format() }, 400);
     }
     const date = parsedQuery.data.date || new Date().toISOString().split('T')[0];
+    const force = c.req.query('force') === '1' || c.req.query('force') === 'true';
     const { generateForecast } = await import('../services/forecastService');
     const { smartBuckets, smartInference } = await import('../services/raindropSmart');
 
     // Check if forecast exists
     const bucket = 'forecasts';
     const key = `${projectId}/${date}`;
-    let forecast = await smartBuckets.get(bucket, key, c.env);
+    let forecast = force ? undefined : await smartBuckets.get(bucket, key, c.env);
 
-    if (!forecast || shouldRegenerateForecast(forecast)) {
+    if (force || !forecast || shouldRegenerateForecast(forecast)) {
       try {
         const inferenceResult = await smartInference.run('forecast_generation', {
           projectId,
@@ -1187,7 +1188,7 @@ async function initDatabase(db: any): Promise<boolean> {
     // Wrap each in try-catch to handle existing tables gracefully
     try {
       await db.executeQuery({
-        sqlQuery: `CREATE TABLE IF NOT EXISTS users (
+        textQuery: `CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
@@ -1202,7 +1203,7 @@ async function initDatabase(db: any): Promise<boolean> {
 
     try {
       await db.executeQuery({
-        sqlQuery: `CREATE TABLE IF NOT EXISTS projects (
+        textQuery: `CREATE TABLE IF NOT EXISTS projects (
           id TEXT PRIMARY KEY,
           user_id TEXT NOT NULL,
           name TEXT NOT NULL,
@@ -1214,7 +1215,7 @@ async function initDatabase(db: any): Promise<boolean> {
       });
       // Unique index to prevent duplicate project names per user
       await db.executeQuery({
-        sqlQuery: `CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_user_name ON projects(user_id, name)`,
+        textQuery: `CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_user_name ON projects(user_id, name)`,
         format: 'json'
       });
     } catch (e) {
@@ -1223,7 +1224,7 @@ async function initDatabase(db: any): Promise<boolean> {
 
     try {
       await db.executeQuery({
-        sqlQuery: `CREATE TABLE IF NOT EXISTS risk_history (
+        textQuery: `CREATE TABLE IF NOT EXISTS risk_history (
           id TEXT PRIMARY KEY,
           project_id TEXT NOT NULL,
           score INTEGER NOT NULL,
