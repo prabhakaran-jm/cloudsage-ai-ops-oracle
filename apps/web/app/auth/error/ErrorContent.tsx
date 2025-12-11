@@ -18,19 +18,25 @@ export default function ErrorContent() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-white mb-2">Authentication Error</h2>
+            <h2 className="text-2xl font-bold text-white mb-2">WorkOS Setup Required</h2>
             <p className="text-white/70 mb-4">
-              {errorDescription || error || 'Something went wrong during authentication.'}
+              {errorDescription || error || 'WorkOS authentication requires additional setup.'}
             </p>
             
-            <div className="mt-6 p-4 bg-white/5 rounded-lg text-left text-sm text-white/60">
-              <p className="font-semibold mb-2">Common fixes:</p>
-              <ul className="list-disc list-inside space-y-1 ml-2">
-                <li>Verify redirect URI matches WorkOS dashboard exactly</li>
-                <li>Ensure an organization is configured in WorkOS</li>
-                <li>Check that WORKOS_CLIENT_ID and WORKOS_API_KEY are correct</li>
-                <li>Try using email/password login as fallback</li>
-              </ul>
+            <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg text-left text-sm text-amber-200 mb-4">
+              <p className="font-semibold mb-2">Quick Fix for Demo:</p>
+              <p className="mb-2">Use <strong>email/password login</strong> below - it works immediately without WorkOS setup!</p>
+            </div>
+            
+            <div className="mt-4 p-4 bg-white/5 rounded-lg text-left text-sm text-white/60">
+              <p className="font-semibold mb-2">To Enable WorkOS SSO:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>Go to <a href="https://dashboard.workos.com" target="_blank" rel="noopener noreferrer" className="text-[#5048e5] underline">dashboard.workos.com</a></li>
+                <li>Create an <strong>Organization</strong> (required)</li>
+                <li>Add redirect URI: <code className="text-xs bg-black/30 px-1 rounded">https://steady-melomakarona-42c054.netlify.app/api/auth/callback</code></li>
+                <li>Add your email to the organization</li>
+                <li>Enable authentication method (Email Magic Link recommended)</li>
+              </ol>
             </div>
 
             <div className="mt-6 flex gap-4">

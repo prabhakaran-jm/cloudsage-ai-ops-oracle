@@ -75,6 +75,15 @@ export default function LoginPage() {
             <p className="text-xs text-center text-white/40 mt-2">
               Powered by WorkOS • SSO, SAML, MFA supported
             </p>
+            <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <p className="text-xs text-amber-200">
+                <strong>Note:</strong> WorkOS requires an organization to be set up in the dashboard. 
+                If you see an error, use email/password login below or set up WorkOS at{' '}
+                <a href="https://dashboard.workos.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">
+                  dashboard.workos.com
+                </a>
+              </p>
+            </div>
           </div>
 
           <div className="relative my-6">
