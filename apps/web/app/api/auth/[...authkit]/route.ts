@@ -134,48 +134,92 @@ async function handleCallback(req: NextRequest) {
       workosLoginUrl: workosLoginUrl,
       email: user.email,
       workosUserId: user.id,
+      envCheck: {
+        hasNextPublicApiUrl: !!process.env.NEXT_PUBLIC_API_URL,
+        hasApiUrl: !!process.env.API_URL,
+      },
     });
+    
+    // First, test if API is reachable
+    try {
+      const healthCheck = await fetch(`${API_BASE_URL}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(5000), // 5 second timeout
+      }).catch(() => null);
+      
+      if (healthCheck) {
+        console.log('[WorkOS Callback] API health check:', {
+          status: healthCheck.status,
+          ok: healthCheck.ok,
+        });
+      } else {
+        console.warn('[WorkOS Callback] API health check failed - API may be unreachable');
+      }
+    } catch (healthError) {
+      console.warn('[WorkOS Callback] API health check error:', healthError);
+    }
     
     try {
       // Add timeout to prevent hanging
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
-      const tokenResponse = await fetch(workosLoginUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: user.email,
-          workosUserId: user.id,
-        }),
-        signal: controller.signal,
-      });
+      console.log('[WorkOS Callback] Making fetch request to:', workosLoginUrl);
+      
+      let tokenResponse;
+      try {
+        tokenResponse = await fetch(workosLoginUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: user.email,
+            workosUserId: user.id,
+          }),
+          signal: controller.signal,
+        });
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+        console.error('[WorkOS Callback] Fetch error (network/CORS/timeout):', {
+          message: fetchError?.message,
+          name: fetchError?.name,
+          cause: fetchError?.cause,
+          stack: fetchError?.stack,
+        });
+        throw fetchError;
+      }
       
       clearTimeout(timeoutId);
       
-      console.log('[WorkOS Callback] Token exchange response:', {
+      console.log('[WorkOS Callback] Token exchange response received:', {
         status: tokenResponse.status,
         statusText: tokenResponse.statusText,
         ok: tokenResponse.ok,
+        headers: Object.fromEntries(tokenResponse.headers.entries()),
       });
       
       if (!tokenResponse.ok) {
-        const errorText = await tokenResponse.text().catch(() => 'Unknown error');
+        const errorText = await tokenResponse.text().catch(() => 'Could not read error response');
+        console.error('[WorkOS Callback] Error response body:', errorText);
+        
         let errorData;
         try {
           errorData = JSON.parse(errorText);
         } catch {
-          errorData = { error: errorText };
+          errorData = { error: errorText, raw: errorText };
         }
+        
         console.error('[WorkOS Callback] Failed to get JWT token:', {
           status: tokenResponse.status,
           statusText: tokenResponse.statusText,
           error: errorData,
           apiUrl: API_BASE_URL,
+          workosLoginUrl: workosLoginUrl,
         });
-        return NextResponse.redirect(new URL(`/auth/error?error=token_exchange_failed&details=${encodeURIComponent(errorData.error || 'Unknown error')}`, req.url));
+        
+        const errorMessage = errorData.error || errorData.message || errorText || 'Unknown error';
+        return NextResponse.redirect(new URL(`/auth/error?error=token_exchange_failed&details=${encodeURIComponent(errorMessage)}`, req.url));
       }
       
       const tokenData = await tokenResponse.json();
