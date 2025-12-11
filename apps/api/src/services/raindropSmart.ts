@@ -506,9 +506,10 @@ export const smartSQL = {
           format: 'json',
         });
         // SmartSQL may return results in different properties depending on version
-        // Use ?? (nullish coalescing) to handle empty arrays correctly ([] is truthy but we want first defined)
-        const rows = result?.rows ?? result?.results ?? result?.data ?? (Array.isArray(result) ? result : []);
-        console.log(`[SmartSQL] (native) Query returned ${rows.length} rows, result keys:`, Object.keys(result ?? {}));
+        // Use || for arrays since [] is truthy - both || and ?? behave the same for arrays
+        // || is safer: if API returns non-array (0, false), it checks next property
+        const rows = result?.rows || result?.results || result?.data || (Array.isArray(result) ? result : []);
+        console.log(`[SmartSQL] (native) Query returned ${rows.length} rows, result keys:`, Object.keys(result || {}));
         return rows;
       }
 
@@ -530,7 +531,7 @@ export const smartSQL = {
         throw new Error('SmartSQL unavailable');
       }
 
-      const rows = result?.rows ?? [];
+      const rows = result?.rows || [];
       console.log(`[SmartSQL] Query returned ${rows.length} rows:`, sql.substring(0, 50));
       return rows;
     } catch (error: any) {
