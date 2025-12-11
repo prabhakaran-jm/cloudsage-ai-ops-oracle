@@ -9,14 +9,17 @@ import { authkitMiddleware } from '@workos-inc/authkit-nextjs';
 const WORKOS_CLIENT_ID = process.env.WORKOS_CLIENT_ID;
 const WORKOS_API_KEY = process.env.WORKOS_API_KEY;
 const WORKOS_REDIRECT_URI = process.env.WORKOS_REDIRECT_URI;
-const WORKOS_ENABLED = WORKOS_CLIENT_ID && WORKOS_API_KEY;
+const WORKOS_COOKIE_PASSWORD = process.env.WORKOS_COOKIE_PASSWORD;
+const WORKOS_ENABLED = WORKOS_CLIENT_ID && WORKOS_API_KEY && WORKOS_COOKIE_PASSWORD;
 
 export default async function middleware(request: NextRequest, event: NextFetchEvent) {
   // If WorkOS is configured, use AuthKit middleware for protected routes
   if (WORKOS_ENABLED) {
     // Configure WorkOS AuthKit
-    // redirectUri must be provided and match WorkOS dashboard configuration
-    const workosConfig: any = {};
+    // redirectUri and cookiePassword are required
+    const workosConfig: any = {
+      cookiePassword: WORKOS_COOKIE_PASSWORD, // Required: at least 32 characters for session encryption
+    };
     
     // Set redirect URI explicitly (required by WorkOS)
     if (WORKOS_REDIRECT_URI) {

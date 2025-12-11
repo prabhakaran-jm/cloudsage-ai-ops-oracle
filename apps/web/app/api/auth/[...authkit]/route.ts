@@ -3,12 +3,16 @@
 
 import { handleAuth } from '@workos-inc/authkit-nextjs';
 
-// WorkOS AuthKit typically auto-detects redirect URI from route
-// But we can explicitly set it if provided in env
+// WorkOS AuthKit configuration
+// Requires cookiePassword (at least 32 chars) and optionally redirectUri
 const config: any = {};
 
+// Cookie password is required for session encryption (must be at least 32 characters)
+if (process.env.WORKOS_COOKIE_PASSWORD) {
+  config.cookiePassword = process.env.WORKOS_COOKIE_PASSWORD;
+}
+
 // Set redirect URI if provided (must match WorkOS dashboard configuration)
-// This ensures it's available even if env vars aren't loaded correctly
 if (process.env.WORKOS_REDIRECT_URI) {
   config.redirectUri = process.env.WORKOS_REDIRECT_URI;
 }

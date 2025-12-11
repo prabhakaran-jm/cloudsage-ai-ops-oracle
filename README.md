@@ -93,6 +93,13 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 - MFA and directory sync ready
 - Free tier: up to 1M monthly active users
 
+**Required Environment Variables:**
+- `WORKOS_CLIENT_ID` - Your WorkOS client ID
+- `WORKOS_API_KEY` - Your WorkOS API key
+- `WORKOS_REDIRECT_URI` - Callback URL (e.g., `https://your-app.netlify.app/api/auth/callback`)
+- `WORKOS_COOKIE_PASSWORD` - **Required**: At least 32 characters for session encryption
+  - Generate with: `openssl rand -base64 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+
 ---
 
 ## Monorepo layout
