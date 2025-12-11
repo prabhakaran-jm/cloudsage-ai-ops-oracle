@@ -4,7 +4,15 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { loadStripe } from '@stripe/stripe-js';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
+// Validate that we have a publishable key (starts with pk_) not a secret key (sk_)
+const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '';
+if (publishableKey && publishableKey.startsWith('sk_')) {
+  console.error('❌ ERROR: NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is set to a SECRET KEY (sk_...).');
+  console.error('   This should be a PUBLISHABLE KEY (pk_...).');
+  console.error('   Secret keys should NEVER be exposed to the client-side!');
+}
+
+const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
 
 interface PricingPlan {
   name: string;
@@ -108,6 +116,10 @@ export default function PricingPage() {
 
       if (!sessionId) {
         throw new Error('No session ID returned from server');
+      }
+
+      if (!stripePromise) {
+        throw new Error('Stripe is not configured. Please set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in environment variables.');
       }
 
       const stripe = await stripePromise;
