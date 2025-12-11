@@ -69,9 +69,19 @@ try {
   configError = error.message;
 }
 
-// Wrapper to handle errors gracefully
-async function handleRequest(req: NextRequest): Promise<NextResponse> {
-  // If config failed, return helpful error
+// Export the WorkOS AuthKit handler
+// handleAuth automatically handles:
+// - /api/auth/signin: Redirects to WorkOS hosted sign-in page
+// - /api/auth/callback: Exchanges authorization code for user session
+// - /api/auth/signout: Ends the user session
+// - /api/auth/user: Returns the current authenticated user
+//
+// The handler uses sealed sessions (encrypted with cookiePassword) for security
+// Sessions are automatically managed via cookies
+
+// Export handlers - if config failed, return error; otherwise use WorkOS handler directly
+// Using the handler directly avoids any wrapper issues that might cause the headers error
+export async function GET(req: NextRequest) {
   if (!workOSHandler) {
     console.error('[WorkOS] Handler not initialized:', configError);
     return NextResponse.json(
@@ -84,59 +94,48 @@ async function handleRequest(req: NextRequest): Promise<NextResponse> {
       { status: 500 }
     );
   }
-
+  
+  // Call WorkOS handler directly - no wrapper to avoid potential issues
   try {
-    // Call the WorkOS handler
-    // handleAuth from @workos-inc/authkit-nextjs should return a NextResponse-compatible response
-    const response = await workOSHandler(req);
-    
-    // Check if response exists
-    if (!response) {
-      console.error('[WorkOS] Handler returned undefined');
-      return NextResponse.json(
-        {
-          error: 'WorkOS authentication error',
-          message: 'Handler returned undefined response',
-        },
-        { status: 500 }
-      );
-    }
-    
-    // Next.js route handlers can return Response, NextResponse, or other compatible types
-    // Just return the response directly - Next.js will handle it
-    return response as NextResponse;
+    return await workOSHandler(req) as NextResponse;
   } catch (error: any) {
-    console.error('[WorkOS Handler Runtime Error]:', {
-      message: error?.message,
-      error: error,
-      stack: error?.stack,
-      errorType: error?.constructor?.name,
-    });
+    console.error('[WorkOS Handler Error]:', error);
     return NextResponse.json(
       {
         error: 'WorkOS authentication error',
-        message: error?.message || 'Unknown error occurred',
-        details: 'Check Netlify function logs for more details',
+        message: error?.message || 'Unknown error',
       },
       { status: 500 }
     );
   }
 }
 
-// Export the WorkOS AuthKit handler
-// handleAuth automatically handles:
-// - /api/auth/signin: Redirects to WorkOS hosted sign-in page
-// - /api/auth/callback: Exchanges authorization code for user session
-// - /api/auth/signout: Ends the user session
-// - /api/auth/user: Returns the current authenticated user
-//
-// The handler uses sealed sessions (encrypted with cookiePassword) for security
-// Sessions are automatically managed via cookies
-export async function GET(req: NextRequest) {
-  return handleRequest(req);
-}
-
 export async function POST(req: NextRequest) {
-  return handleRequest(req);
+  if (!workOSHandler) {
+    console.error('[WorkOS] Handler not initialized:', configError);
+    return NextResponse.json(
+      {
+        error: 'WorkOS configuration error',
+        message: configError || 'WorkOS is not properly configured',
+        details: 'Check Netlify environment variables: WORKOS_CLIENT_ID, WORKOS_API_KEY, WORKOS_COOKIE_PASSWORD',
+        help: 'Visit /auth/debug for diagnostics',
+      },
+      { status: 500 }
+    );
+  }
+  
+  // Call WorkOS handler directly - no wrapper to avoid potential issues
+  try {
+    return await workOSHandler(req) as NextResponse;
+  } catch (error: any) {
+    console.error('[WorkOS Handler Error]:', error);
+    return NextResponse.json(
+      {
+        error: 'WorkOS authentication error',
+        message: error?.message || 'Unknown error',
+      },
+      { status: 500 }
+    );
+  }
 }
 
