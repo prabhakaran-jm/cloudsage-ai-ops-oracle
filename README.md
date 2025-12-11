@@ -102,15 +102,34 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 
 **WorkOS Dashboard Setup (Required):**
 1. Go to https://dashboard.workos.com
-2. Create an **Organization** (required for AuthKit to work)
-3. Add the **Redirect URI** exactly as: `https://your-app.netlify.app/api/auth/callback`
-4. Configure authentication methods (Email Magic Link, OAuth, etc.)
-5. Add users to the organization or enable self-registration
+2. **Create an Organization:**
+   - Click "Organizations" → "Create Organization"
+   - Name it (e.g., "CloudSage Users")
+   - **Important:** Note the Organization ID
+3. **Link Organization to Application:**
+   - Go to your Application settings
+   - Navigate to "Organizations" tab
+   - Ensure your organization is listed/linked to the application
+   - If not, you may need to add it or set it as default
+4. **Add Redirect URI:**
+   - In Application settings → "Redirect URIs"
+   - Add exactly: `https://steady-melomakarona-42c054.netlify.app/api/auth/callback`
+   - Must match EXACTLY (including `https://` and no trailing slash)
+5. **Add Users:**
+   - Go to Organizations → Your Organization → "Members"
+   - Click "Add User" or "Invite User"
+   - Add your email address
+6. **Enable Authentication:**
+   - Go to Authentication settings
+   - Enable "Email Magic Link" (easiest for testing)
+   - Or configure OAuth providers
 
 **Troubleshooting:**
-- "Couldn't sign in" error → Ensure an organization is created in WorkOS dashboard
-- Redirect URI mismatch → Verify the URI in WorkOS dashboard matches exactly (including `https://`)
+- "Couldn't sign in" error → **Most common cause:** Organization not linked to application. Check Application → Organizations tab.
+- Redirect URI mismatch → Verify the URI matches EXACTLY (case-sensitive, no trailing slash)
+- User not found → Ensure your email is added to the organization
 - Cookie password error → Generate a new 32+ character password
+- **Quick test:** Visit `/auth/debug` for diagnostics
 
 ---
 

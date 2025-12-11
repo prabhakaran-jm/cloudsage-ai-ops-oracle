@@ -32,6 +32,8 @@ export default function LoginPage() {
 
   const handleWorkOSLogin = () => {
     // Redirect to WorkOS AuthKit sign-in
+    // WorkOS will handle organization selection if multiple exist
+    // If only one organization, it will use that automatically
     window.location.href = '/api/auth/signin';
   };
 

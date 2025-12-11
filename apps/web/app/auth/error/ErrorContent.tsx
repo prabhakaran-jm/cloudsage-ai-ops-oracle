@@ -39,12 +39,18 @@ export default function ErrorContent() {
               </ol>
             </div>
 
-            <div className="mt-6 flex gap-4">
+            <div className="mt-6 flex flex-wrap gap-4">
               <Link
                 href="/login"
                 className="px-4 py-2 bg-[#5048e5] hover:bg-[#5048e5]/90 text-white rounded-lg transition-colors"
               >
                 Back to Login
+              </Link>
+              <Link
+                href="/auth/debug"
+                className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-200 rounded-lg transition-colors"
+              >
+                🔍 Run Diagnostics
               </Link>
               <Link
                 href="/"
