@@ -4,8 +4,14 @@ import { useEffect, useState } from 'react';
 
 export default function WorkOSDebugPage() {
   const [checks, setChecks] = useState<Array<{ name: string; status: 'checking' | 'pass' | 'fail'; message: string }>>([]);
+  const [redirectUri, setRedirectUri] = useState<string>('');
 
   useEffect(() => {
+    // Set redirect URI from window (client-side only)
+    if (typeof window !== 'undefined') {
+      setRedirectUri(`${window.location.origin}/api/auth/callback`);
+    }
+
     const runChecks = async () => {
       const results: Array<{ name: string; status: 'checking' | 'pass' | 'fail'; message: string }> = [];
 
@@ -19,13 +25,15 @@ export default function WorkOSDebugPage() {
       });
 
       // Check 2: Test redirect URI format
-      const currentUrl = window.location.origin;
-      const expectedCallback = `${currentUrl}/api/auth/callback`;
-      results.push({
-        name: 'Redirect URI Format',
-        status: 'pass',
-        message: `Expected: ${expectedCallback} (must match WorkOS dashboard exactly)`
-      });
+      if (typeof window !== 'undefined') {
+        const currentUrl = window.location.origin;
+        const expectedCallback = `${currentUrl}/api/auth/callback`;
+        results.push({
+          name: 'Redirect URI Format',
+          status: 'pass',
+          message: `Expected: ${expectedCallback} (must match WorkOS dashboard exactly)`
+        });
+      }
 
       // Check 3: Test sign-in endpoint
       try {
@@ -56,21 +64,30 @@ export default function WorkOSDebugPage() {
           <h2 className="text-2xl font-bold text-white mb-6">WorkOS Configuration Diagnostics</h2>
           
           <div className="space-y-4">
-            {checks.map((check, i) => (
-              <div key={i} className="flex items-start gap-4 p-4 bg-white/5 rounded-lg">
-                <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
-                  check.status === 'pass' ? 'bg-green-500/20 text-green-400' :
-                  check.status === 'fail' ? 'bg-red-500/20 text-red-400' :
-                  'bg-amber-500/20 text-amber-400 animate-pulse'
-                }`}>
-                  {check.status === 'pass' ? '✓' : check.status === 'fail' ? '✗' : '○'}
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold text-white mb-1">{check.name}</div>
-                  <div className="text-sm text-white/60">{check.message}</div>
+            {checks.length === 0 ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="flex items-center gap-3 text-white/60">
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Running diagnostics...</span>
                 </div>
               </div>
-            ))}
+            ) : (
+              checks.map((check, i) => (
+                <div key={i} className="flex items-start gap-4 p-4 bg-white/5 rounded-lg">
+                  <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center ${
+                    check.status === 'pass' ? 'bg-green-500/20 text-green-400' :
+                    check.status === 'fail' ? 'bg-red-500/20 text-red-400' :
+                    'bg-amber-500/20 text-amber-400 animate-pulse'
+                  }`}>
+                    {check.status === 'pass' ? '✓' : check.status === 'fail' ? '✗' : '○'}
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-white mb-1">{check.name}</div>
+                    <div className="text-sm text-white/60">{check.message}</div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="mt-8 p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
@@ -78,7 +95,7 @@ export default function WorkOSDebugPage() {
             <ol className="list-decimal list-inside space-y-1 text-sm text-amber-200/80">
               <li>Organization created and active</li>
               <li>Your email added to the organization</li>
-              <li>Redirect URI added: <code className="bg-black/30 px-1 rounded">{window.location.origin}/api/auth/callback</code></li>
+              <li>Redirect URI added: <code className="bg-black/30 px-1 rounded">{redirectUri || 'https://your-app.netlify.app/api/auth/callback'}</code></li>
               <li>Authentication method enabled (Email Magic Link recommended)</li>
               <li>Application linked to organization (check Organization settings)</li>
             </ol>
