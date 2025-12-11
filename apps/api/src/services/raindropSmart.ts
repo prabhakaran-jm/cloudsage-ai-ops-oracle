@@ -458,8 +458,9 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
+        // Use sqlQuery to avoid natural-language AI reasoning overhead
         const result = await mainDb.executeQuery({
-          textQuery: sql,
+          sqlQuery: sql,
           params,
           format: 'json',
         });
@@ -503,8 +504,9 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
+        // Use sqlQuery to avoid natural-language AI reasoning overhead
         const result = await mainDb.executeQuery({
-          textQuery: sql,
+          sqlQuery: sql,
           params,
           format: 'json',
         });
