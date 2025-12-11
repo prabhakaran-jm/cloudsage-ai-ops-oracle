@@ -87,24 +87,30 @@ async function handleRequest(req: NextRequest): Promise<NextResponse> {
 
   try {
     // Call the WorkOS handler
+    // handleAuth from @workos-inc/authkit-nextjs should return a NextResponse-compatible response
     const response = await workOSHandler(req);
     
-    // Convert Response to NextResponse if needed
-    if (response instanceof NextResponse) {
-      return response;
+    // Check if response exists
+    if (!response) {
+      console.error('[WorkOS] Handler returned undefined');
+      return NextResponse.json(
+        {
+          error: 'WorkOS authentication error',
+          message: 'Handler returned undefined response',
+        },
+        { status: 500 }
+      );
     }
     
-    // Create NextResponse from standard Response
-    return new NextResponse(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: response.headers,
-    });
+    // Next.js route handlers can return Response, NextResponse, or other compatible types
+    // Just return the response directly - Next.js will handle it
+    return response as NextResponse;
   } catch (error: any) {
     console.error('[WorkOS Handler Runtime Error]:', {
       message: error?.message,
       error: error,
       stack: error?.stack,
+      errorType: error?.constructor?.name,
     });
     return NextResponse.json(
       {
