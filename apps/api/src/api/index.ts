@@ -477,6 +477,91 @@ app.post('/api/auth/logout', (c: Context<{ Bindings: AppEnv }>) => {
   return c.json({ message: 'Logged out successfully' });
 });
 
+// Stripe checkout login - create/login user after Stripe payment
+app.post('/api/auth/stripe-login', async (c: Context<{ Bindings: AppEnv }>) => {
+  try {
+    const body = await c.req.json();
+    const { email } = body;
+
+    if (!email) {
+      return c.json({ error: 'Email is required' }, 400);
+    }
+
+    // Normalize email
+    const normalizedEmail = email.toLowerCase().trim();
+
+    console.log('[Auth] Stripe checkout login attempt for email:', normalizedEmail);
+
+    // Try to find existing user
+    let user = null;
+    try {
+      const rows = await smartSQL.query('SELECT * FROM users WHERE email = ?', [normalizedEmail], c.env);
+      if (rows?.length) {
+        user = rows[0];
+      }
+    } catch (err) {
+      console.warn('[Auth] SmartSQL query failed, trying SmartBuckets:', err);
+    }
+
+    // Try SmartBuckets (fallback)
+    if (!user) {
+      try {
+        const bucketUser = await smartBuckets.get('users', normalizedEmail, c.env);
+        if (bucketUser) {
+          user = bucketUser.value || bucketUser.data || bucketUser;
+        }
+      } catch (err) {
+        console.warn('[Auth] SmartBuckets query failed:', err);
+      }
+    }
+
+    let userId: string;
+
+    if (user) {
+      // User exists, use their ID
+      userId = user.id || (user.value || user.data || user).id;
+      console.log('[Auth] Existing user found:', normalizedEmail, 'userId:', userId);
+    } else {
+      // Create new user (Stripe checkout JIT provisioning)
+      userId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const now = new Date().toISOString();
+      
+      const userData = {
+        id: userId,
+        email: normalizedEmail,
+        password_hash: null, // Stripe checkout users don't have passwords initially
+        created_at: now,
+        updated_at: now,
+      };
+
+      // Store in SmartSQL
+      try {
+        await smartSQL.execute(
+          'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+          [userId, normalizedEmail, null, now, now],
+          c.env
+        );
+        console.log('[Auth] Stripe checkout user created in SmartSQL:', normalizedEmail);
+      } catch (err) {
+        console.warn('[Auth] SmartSQL insert failed, storing in SmartBuckets:', err);
+        await smartBuckets.put('users', normalizedEmail, userData, c.env);
+        console.log('[Auth] Stripe checkout user created in SmartBuckets:', normalizedEmail);
+      }
+    }
+
+    const token = await signToken(userId, c.env);
+
+    console.log('[Auth] Stripe checkout login successful for:', normalizedEmail);
+    return c.json({
+      token,
+      user: { id: userId, email: normalizedEmail },
+    });
+  } catch (error: any) {
+    console.error('[Auth] Stripe checkout login error:', error?.message || error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
 // WorkOS AuthKit login - exchange WorkOS user for JWT token
 app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
   try {

@@ -35,9 +35,15 @@ function CheckoutSuccessContent() {
           throw new Error(errorData.error || 'Failed to verify session');
         }
 
-        const { verified, user } = await response.json();
+        const { verified, token, user } = await response.json();
 
-        if (verified) {
+        if (verified && token) {
+          // Store JWT token in localStorage
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('auth_token', token);
+            console.log('[Checkout Success] Token stored for user:', user?.email);
+          }
+
           setStatus('success');
           setMessage('Subscription activated! Redirecting to your projects...');
           
@@ -46,7 +52,7 @@ function CheckoutSuccessContent() {
             router.push('/projects');
           }, 2000);
         } else {
-          throw new Error('Session verification failed');
+          throw new Error('Session verification failed or no token received');
         }
       } catch (err: any) {
         console.error('Checkout verification error:', err);
