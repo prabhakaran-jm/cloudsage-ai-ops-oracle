@@ -307,23 +307,93 @@ async function handleCallback(req: NextRequest) {
 
 // Handle sign-out
 async function handleSignOut(req: NextRequest) {
-  // Clear WorkOS session cookie
-  const redirectResponse = NextResponse.redirect(new URL('/login', req.url));
-  
-  // Delete the WorkOS session cookie with all possible paths and domains
-  redirectResponse.cookies.delete('wos-session');
-  redirectResponse.cookies.set('wos-session', '', {
-    expires: new Date(0),
-    path: '/',
-    httpOnly: true,
-    secure: true,
-    sameSite: 'lax',
-  });
-  
-  // Note: localStorage token will be cleared by the frontend on logout
-  // The frontend logout function already handles this
-  
-  return redirectResponse;
+  if (!workos) {
+    // If WorkOS is not configured, just clear the cookie
+    return NextResponse.json({ success: true, message: 'Logged out (WorkOS not configured)' });
+  }
+
+  try {
+    // Get the sealed session from the cookie
+    const sessionCookie = req.cookies.get('wos-session')?.value;
+
+    if (sessionCookie) {
+      try {
+        // Load the sealed session to get session details
+        const session = await workos.userManagement.loadSealedSession({
+          sessionData: sessionCookie,
+          cookiePassword: WORKOS_COOKIE_PASSWORD!,
+        });
+
+        // Get the session ID - it may be directly on the session object or in the access token
+        // Try to get sessionId from the session object first
+        let sessionId: string | undefined;
+        
+        // Check if session has sessionId property directly
+        if ('sessionId' in session && typeof (session as any).sessionId === 'string') {
+          sessionId = (session as any).sessionId;
+        }
+        // Otherwise, try to extract from access token if available
+        else if ('accessToken' in session && typeof (session as any).accessToken === 'string') {
+          try {
+            const accessToken = (session as any).accessToken;
+            // Decode JWT to get session ID (sid claim)
+            const payload = JSON.parse(
+              Buffer.from(accessToken.split('.')[1], 'base64').toString()
+            );
+            sessionId = payload.sid;
+          } catch (decodeError) {
+            console.warn('[WorkOS Sign-out] Failed to decode access token:', decodeError);
+          }
+        }
+
+        if (sessionId) {
+          // Revoke the session on WorkOS servers - this invalidates the server-side session
+          await workos.userManagement.revokeSession({ sessionId });
+          console.log('[WorkOS Sign-out] Session revoked successfully:', sessionId);
+        } else {
+          console.warn('[WorkOS Sign-out] Could not extract session ID from sealed session');
+        }
+      } catch (sessionError: any) {
+        // Log but don't fail - we'll still clear the cookie
+        console.warn('[WorkOS Sign-out] Failed to revoke session (non-critical):', {
+          message: sessionError?.message,
+          error: sessionError,
+        });
+      }
+    }
+
+    // Clear the session cookie and return success
+    console.log('[WorkOS Sign-out] Session cookie cleared');
+    const response = NextResponse.json({ success: true, message: 'Logged out successfully' });
+    response.cookies.delete('wos-session');
+    response.cookies.set('wos-session', '', {
+      expires: new Date(0),
+      path: '/',
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+    });
+
+    return response;
+  } catch (error: any) {
+    console.error('[WorkOS Sign-out Error]:', {
+      message: error?.message,
+      error: error,
+    });
+
+    // Even on error, clear the cookie
+    const response = NextResponse.json({ success: true, message: 'Logged out (with errors)' });
+    response.cookies.delete('wos-session');
+    response.cookies.set('wos-session', '', {
+      expires: new Date(0),
+      path: '/',
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
+    });
+
+    return response;
+  }
 }
 
 // Main handler
