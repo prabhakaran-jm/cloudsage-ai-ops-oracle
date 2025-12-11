@@ -21,6 +21,11 @@ export default async function middleware(request: NextRequest, event: NextFetchE
       cookiePassword: WORKOS_COOKIE_PASSWORD, // Required: at least 32 characters for session encryption
     };
     
+    // Explicitly set clientId (WorkOS reads from env, but setting explicitly can help)
+    if (WORKOS_CLIENT_ID) {
+      workosConfig.clientId = WORKOS_CLIENT_ID;
+    }
+    
     // Set redirect URI explicitly (required by WorkOS)
     if (WORKOS_REDIRECT_URI) {
       workosConfig.redirectUri = WORKOS_REDIRECT_URI;

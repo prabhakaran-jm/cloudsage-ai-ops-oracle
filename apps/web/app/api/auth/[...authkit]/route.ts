@@ -11,6 +11,11 @@ import { handleAuth } from '@workos-inc/authkit-nextjs';
 // - WORKOS_REDIRECT_URI (optional, but recommended)
 const config: any = {};
 
+// Client ID - WorkOS AuthKit reads this from env automatically, but explicitly setting it can help
+if (process.env.WORKOS_CLIENT_ID) {
+  config.clientId = process.env.WORKOS_CLIENT_ID;
+}
+
 // Cookie password is required for session encryption (must be at least 32 characters)
 if (process.env.WORKOS_COOKIE_PASSWORD) {
   config.cookiePassword = process.env.WORKOS_COOKIE_PASSWORD;
