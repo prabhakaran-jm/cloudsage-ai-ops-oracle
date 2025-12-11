@@ -103,14 +103,14 @@ export default function ProjectDetailPage() {
     }
   };
 
-  const handleRefresh = (newRiskScore?: RiskScore) => {
+  const handleRefresh = async (newRiskScore?: RiskScore) => {
     console.log('[ProjectDetail] Refresh triggered after log ingestion');
 
     if (newRiskScore) {
       console.log('[ProjectDetail] Using immediate risk score from ingestion response:', newRiskScore);
       setRiskScore(newRiskScore);
       setRiskScoreTimestamp(newRiskScore.timestamp);
-      // Optimistically append to history for immediate trends feedback
+      // Optimistically append to history, but then refresh from API to avoid races
       setRiskHistory((prev) => {
         const next = [
           { score: newRiskScore.score, timestamp: newRiskScore.timestamp, labels: newRiskScore.labels || [] },
@@ -123,9 +123,8 @@ export default function ProjectDetailPage() {
       loadProject();
     }
 
-    // Always refresh forecast and history to reflect latest context
-    loadForecast();
-    loadRiskHistory();
+    // Always refresh forecast and history to reflect latest context; await to reduce race flicker
+    await Promise.all([loadForecast(), loadRiskHistory()]);
   };
 
   const checkHealth = async () => {
