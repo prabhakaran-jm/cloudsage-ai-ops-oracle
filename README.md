@@ -100,6 +100,18 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 - `WORKOS_COOKIE_PASSWORD` - **Required**: At least 32 characters for session encryption
   - Generate with: `openssl rand -base64 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
 
+**WorkOS Dashboard Setup (Required):**
+1. Go to https://dashboard.workos.com
+2. Create an **Organization** (required for AuthKit to work)
+3. Add the **Redirect URI** exactly as: `https://your-app.netlify.app/api/auth/callback`
+4. Configure authentication methods (Email Magic Link, OAuth, etc.)
+5. Add users to the organization or enable self-registration
+
+**Troubleshooting:**
+- "Couldn't sign in" error → Ensure an organization is created in WorkOS dashboard
+- Redirect URI mismatch → Verify the URI in WorkOS dashboard matches exactly (including `https://`)
+- Cookie password error → Generate a new 32+ character password
+
 ---
 
 ## Monorepo layout
