@@ -458,10 +458,10 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
-        // Use sqlQuery for direct SQL execution (textQuery is for natural language!)
+        // Use sqlQuery for direct SQL execution with bindings for D1 params
         const result = await mainDb.executeQuery({
           sqlQuery: sql,
-          params,
+          bindings: params,
           format: 'json',
         });
         const rows = result?.rows || [];
@@ -504,10 +504,10 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
-        // Use sqlQuery for direct SQL execution (textQuery is for natural language!)
+        // Use sqlQuery for direct SQL execution with bindings for D1 params
         const result = await mainDb.executeQuery({
           sqlQuery: sql,
-          params,
+          bindings: params,
           format: 'json',
         });
         const affectedRows = result?.affectedRows || result?.rowCount || 0;
