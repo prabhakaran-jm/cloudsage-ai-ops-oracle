@@ -109,6 +109,13 @@ export const apiClient = {
   async logout() {
     try {
       await request('/auth/logout', { method: 'POST' });
+      // Also clear WorkOS session by calling signout endpoint
+      try {
+        await fetch('/api/auth/signout', { method: 'GET' });
+      } catch (err) {
+        // Ignore errors - WorkOS may not be configured
+        console.warn('WorkOS signout failed:', err);
+      }
     } finally {
       removeToken();
     }

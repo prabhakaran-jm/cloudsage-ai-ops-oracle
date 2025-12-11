@@ -36,6 +36,10 @@ export default function LoginPage() {
   };
 
   const handleWorkOSLogin = () => {
+    // Clear any existing WorkOS session cookie before redirecting
+    // This ensures users are prompted for email/OTP instead of auto-logging in
+    document.cookie = 'wos-session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    
     // Redirect to WorkOS AuthKit sign-in
     // WorkOS will handle organization selection if multiple exist
     // If only one organization, it will use that automatically
@@ -88,17 +92,6 @@ export default function LoginPage() {
                 Your account uses passwordless authentication (email + OTP).
               </p>
             </div>
-            {WORKOS_ENABLED && (
-              <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                <p className="text-xs text-amber-200">
-                  <strong>Note:</strong> WorkOS requires an organization to be set up in the dashboard. 
-                  If you see an error, set up WorkOS at{' '}
-                  <a href="https://dashboard.workos.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">
-                    dashboard.workos.com
-                  </a>
-                </p>
-              </div>
-            )}
           </div>
 
           <div className="relative my-6">

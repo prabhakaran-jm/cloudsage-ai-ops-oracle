@@ -58,10 +58,14 @@ async function handleSignIn(req: NextRequest) {
       hasCookiePassword: !!WORKOS_COOKIE_PASSWORD,
     });
     
+    // Force re-authentication by adding state parameter and clearing any existing session
+    // This ensures users are prompted for email/OTP even if they have a session cookie
     const authorizationUrl = workos.userManagement.getAuthorizationUrl({
       provider: 'authkit', // Using AuthKit, not SSO
       redirectUri: WORKOS_REDIRECT_URI,
       clientId: WORKOS_CLIENT_ID!,
+      // Add state to force re-authentication
+      state: `force_auth_${Date.now()}`,
     });
     
     console.log('[WorkOS Sign-in] Authorization URL generated:', authorizationUrl.substring(0, 100) + '...');
@@ -288,7 +292,16 @@ async function handleCallback(req: NextRequest) {
 async function handleSignOut(req: NextRequest) {
   // Clear WorkOS session cookie
   const redirectResponse = NextResponse.redirect(new URL('/login', req.url));
+  
+  // Delete the WorkOS session cookie with all possible paths and domains
   redirectResponse.cookies.delete('wos-session');
+  redirectResponse.cookies.set('wos-session', '', {
+    expires: new Date(0),
+    path: '/',
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+  });
   
   // Note: localStorage token will be cleared by the frontend on logout
   // The frontend logout function already handles this
