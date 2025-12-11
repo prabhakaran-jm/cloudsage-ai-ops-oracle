@@ -5,9 +5,9 @@ export async function initDatabase(db: any): Promise<boolean> {
   try {
     console.log('[CloudSage] Initializing database tables...');
 
-    // Create tables using SmartSQL executeQuery with sql (positional params supported)
+    // Create tables using SmartSQL executeQuery with textQuery (per Raindrop docs)
     await db.executeQuery({
-      sql: `CREATE TABLE IF NOT EXISTS users (
+      textQuery: `CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
@@ -18,7 +18,7 @@ export async function initDatabase(db: any): Promise<boolean> {
     });
 
     await db.executeQuery({
-      sql: `CREATE TABLE IF NOT EXISTS projects (
+      textQuery: `CREATE TABLE IF NOT EXISTS projects (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
         name TEXT NOT NULL,
@@ -30,7 +30,7 @@ export async function initDatabase(db: any): Promise<boolean> {
     });
 
     await db.executeQuery({
-      sql: `CREATE TABLE IF NOT EXISTS risk_history (
+      textQuery: `CREATE TABLE IF NOT EXISTS risk_history (
         id TEXT PRIMARY KEY,
         project_id TEXT NOT NULL,
         score INTEGER NOT NULL,
