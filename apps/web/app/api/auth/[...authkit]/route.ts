@@ -134,10 +134,13 @@ async function handleSignIn(req: NextRequest) {
     // - prompt=login: Forces WorkOS to always prompt for credentials
     // - max_age=0: Treats any existing session as expired, forcing immediate re-auth
     // - login_hint=: Empty login hint to prevent email pre-filling
+    // - state: Unique state parameter to prevent replay attacks and ensure fresh auth
     const url = new URL(authorizationUrl);
     url.searchParams.set('prompt', 'login');
     url.searchParams.set('max_age', '0'); // Force immediate re-authentication
     url.searchParams.set('login_hint', ''); // Clear any pre-filled email
+    // Ensure state is unique (already set in getAuthorizationUrl, but we'll update it)
+    url.searchParams.set('state', `force_auth_${Date.now()}_${Math.random().toString(36).substring(7)}`);
     authorizationUrl = url.toString();
     
     // Clear any existing WorkOS session cookie
@@ -151,7 +154,15 @@ async function handleSignIn(req: NextRequest) {
       sameSite: 'lax',
     });
     
-    console.log('[WorkOS Sign-in] Authorization URL generated with prompt=login, session revoked and cookie cleared');
+    console.log('[WorkOS Sign-in] Authorization URL generated:', {
+      hasPrompt: url.searchParams.has('prompt'),
+      promptValue: url.searchParams.get('prompt'),
+      hasMaxAge: url.searchParams.has('max_age'),
+      maxAgeValue: url.searchParams.get('max_age'),
+      hasLoginHint: url.searchParams.has('login_hint'),
+      stateValue: url.searchParams.get('state'),
+      fullUrl: authorizationUrl.substring(0, 200) + '...', // Log first 200 chars to avoid logging full URL
+    });
     
     return redirectResponse;
   } catch (error: any) {
