@@ -87,6 +87,8 @@ export default function PricingPage() {
 
       const stripe = await stripePromise;
       if (stripe) {
+        // @ts-expect-error - TypeScript incorrectly resolves to server-side Stripe type
+        // The client-side Stripe from @stripe/stripe-js does have redirectToCheckout
         const { error: redirectError } = await stripe.redirectToCheckout({
           sessionId,
         });
