@@ -61,6 +61,11 @@ async function handleSignIn(req: NextRequest) {
     // CRITICAL: Revoke any existing WorkOS session before redirecting to sign-in
     // This ensures WorkOS doesn't auto-authenticate with a previous session
     const sessionCookie = req.cookies.get('wos-session')?.value;
+    console.log('[WorkOS Sign-in] Checking for existing session cookie:', {
+      hasCookie: !!sessionCookie,
+      cookieLength: sessionCookie?.length || 0,
+    });
+    
     if (sessionCookie) {
       try {
         console.log('[WorkOS Sign-in] Found existing session cookie, attempting to revoke...');
@@ -69,11 +74,18 @@ async function handleSignIn(req: NextRequest) {
           cookiePassword: WORKOS_COOKIE_PASSWORD!,
         });
 
+        console.log('[WorkOS Sign-in] Loaded sealed session, checking for session ID...', {
+          hasSessionId: 'sessionId' in session,
+          hasAccessToken: 'accessToken' in session,
+          sessionKeys: Object.keys(session),
+        });
+
         // Try to extract session ID
         let sessionId: string | undefined;
         
         if ('sessionId' in session && typeof (session as any).sessionId === 'string') {
           sessionId = (session as any).sessionId;
+          console.log('[WorkOS Sign-in] Found sessionId directly on session object');
         } else if ('accessToken' in session && typeof (session as any).accessToken === 'string') {
           try {
             const accessToken = (session as any).accessToken;
@@ -81,22 +93,31 @@ async function handleSignIn(req: NextRequest) {
               Buffer.from(accessToken.split('.')[1], 'base64').toString()
             );
             sessionId = payload.sid;
+            console.log('[WorkOS Sign-in] Extracted sessionId from access token JWT');
           } catch (decodeError) {
             console.warn('[WorkOS Sign-in] Failed to decode access token:', decodeError);
           }
         }
 
         if (sessionId) {
+          console.log('[WorkOS Sign-in] Revoking session:', sessionId);
           await workos.userManagement.revokeSession({ sessionId });
-          console.log('[WorkOS Sign-in] Existing session revoked before sign-in:', sessionId);
+          console.log('[WorkOS Sign-in] ✅ Existing session revoked successfully before sign-in:', sessionId);
         } else {
-          console.warn('[WorkOS Sign-in] Could not extract session ID, will clear cookie only');
+          console.warn('[WorkOS Sign-in] ⚠️ Could not extract session ID from sealed session. Session structure:', {
+            sessionType: typeof session,
+            sessionKeys: Object.keys(session),
+          });
         }
       } catch (revokeError: any) {
-        console.warn('[WorkOS Sign-in] Failed to revoke existing session (will continue anyway):', {
+        console.error('[WorkOS Sign-in] ❌ Failed to revoke existing session (will continue anyway):', {
           message: revokeError?.message,
+          error: revokeError,
+          stack: revokeError?.stack,
         });
       }
+    } else {
+      console.log('[WorkOS Sign-in] No existing session cookie found, proceeding with fresh sign-in');
     }
     
     // Get the authorization URL and append prompt=login to force re-authentication
