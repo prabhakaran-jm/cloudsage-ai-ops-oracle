@@ -80,6 +80,7 @@ export default function ProjectDetailPage() {
   const [description, setDescription] = useState('');
   const [apiStatus, setApiStatus] = useState<'ok' | 'degraded' | 'down'>('degraded');
   const [workerStatus, setWorkerStatus] = useState<'ok' | 'degraded' | 'down'>('degraded');
+  const [vultrStatus, setVultrStatus] = useState<{ status: string; latency?: string | null }>({ status: 'checking' });
 
   useEffect(() => {
     if (projectId) {
@@ -197,6 +198,13 @@ export default function ProjectDetailPage() {
       setWorkerStatus('ok');
     } catch {
       setWorkerStatus('degraded');
+    }
+    // Check Vultr infrastructure status
+    try {
+      const vultr = await apiClient.getVultrStatus();
+      setVultrStatus({ status: vultr.status, latency: vultr.latency });
+    } catch {
+      setVultrStatus({ status: 'offline', latency: null });
     }
   };
 
@@ -337,21 +345,44 @@ export default function ProjectDetailPage() {
                 {error}
               </div>
             )}
-            <div className="flex flex-wrap gap-3 text-xs">
-              <span className={`px-3 py-1 rounded-full border ${badgeClass(apiStatus)}`}>
-                API: {apiStatus.toUpperCase()}
-              </span>
-              <span className={`px-3 py-1 rounded-full border ${badgeClass(workerStatus)}`}>
-                Worker: {workerStatus.toUpperCase()}
-              </span>
+            {/* Infrastructure Status Panel */}
+            <div className="flex flex-wrap items-center gap-4 p-3 rounded-lg bg-white/5 border border-white/10">
+              <div className="flex items-center gap-2">
+                <span className={`px-3 py-1 rounded-full border text-xs ${badgeClass(apiStatus)}`}>
+                  Raindrop API: {apiStatus.toUpperCase()}
+                </span>
+              </div>
+              
+              {/* Vultr Status - Prominent */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#007BFC]/10 border border-[#007BFC]/30">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#007BFC" strokeWidth="2" fill="none"/>
+                </svg>
+                <span className="text-[#007BFC] font-medium text-xs">Vultr</span>
+                <span className={`flex items-center gap-1 text-xs ${
+                  vultrStatus.status === 'online' ? 'text-green-400' : 
+                  vultrStatus.status === 'checking' ? 'text-amber-400' : 'text-red-400'
+                }`}>
+                  <span className={`w-2 h-2 rounded-full ${
+                    vultrStatus.status === 'online' ? 'bg-green-400 animate-pulse' : 
+                    vultrStatus.status === 'checking' ? 'bg-amber-400 animate-pulse' : 'bg-red-400'
+                  }`} />
+                  {vultrStatus.status === 'online' ? 'Risk Engine Online' : 
+                   vultrStatus.status === 'checking' ? 'Connecting...' : 'Offline (using fallback)'}
+                </span>
+                {vultrStatus.latency && (
+                  <span className="text-white/40 text-xs">({vultrStatus.latency})</span>
+                )}
+              </div>
+
               {riskScoreTimestamp && (
-                <span className="px-3 py-1 rounded-full border border-white/10 text-white/60">
-                  Risk updated: {new Date(riskScoreTimestamp).toLocaleString()}
+                <span className="px-3 py-1 rounded-full border border-white/10 text-white/60 text-xs">
+                  Risk: {new Date(riskScoreTimestamp).toLocaleString()}
                 </span>
               )}
               {forecast?.generatedAt && (
-                <span className="px-3 py-1 rounded-full border border-white/10 text-white/60">
-                  Forecast updated: {new Date(forecast.generatedAt).toLocaleString()}
+                <span className="px-3 py-1 rounded-full border border-white/10 text-white/60 text-xs">
+                  Forecast: {new Date(forecast.generatedAt).toLocaleString()}
                 </span>
               )}
             </div>

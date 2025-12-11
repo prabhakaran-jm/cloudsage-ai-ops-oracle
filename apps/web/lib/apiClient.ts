@@ -61,6 +61,18 @@ export const apiClient = {
     return res.json();
   },
 
+  // Vultr Infrastructure Status
+  async getVultrStatus() {
+    return request<{
+      status: 'online' | 'offline';
+      service: string;
+      component: string;
+      latency?: string | null;
+      region?: string;
+      timestamp: string;
+    }>('/vultr/status');
+  },
+
   // Auth
   async register(email: string, password: string) {
     const data = await request<{ token: string; user: { id: string; email: string } }>(

@@ -286,6 +286,33 @@ app.get('/api/health', (c: Context<{ Bindings: AppEnv }>) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Vultr infrastructure status
+app.get('/api/vultr/status', async (c: Context<{ Bindings: AppEnv }>) => {
+  try {
+    const { checkVultrWorkerHealth } = await import('../services/vultrClient');
+    const startTime = Date.now();
+    const isHealthy = await checkVultrWorkerHealth();
+    const latency = Date.now() - startTime;
+    
+    return c.json({
+      status: isHealthy ? 'online' : 'offline',
+      service: 'Vultr Cloud Compute',
+      component: 'Risk Scoring Engine',
+      latency: isHealthy ? `${latency}ms` : null,
+      region: 'Vultr Cloud',
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    return c.json({
+      status: 'offline',
+      service: 'Vultr Cloud Compute',
+      component: 'Risk Scoring Engine',
+      error: error?.message || 'Connection failed',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 app.get('/api/hello', (c: Context<{ Bindings: AppEnv }>) => {
   return c.json({ 
     status: 'ok',
