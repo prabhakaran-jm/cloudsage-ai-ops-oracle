@@ -40,7 +40,15 @@ async function request<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    throw new Error(error.error || 'Request failed');
+    const errorObj = new Error(error.error || error.message || 'Request failed');
+    // Preserve error code for passwordless account detection
+    if (error.code) {
+      (errorObj as any).code = error.code;
+    }
+    if (error.message) {
+      errorObj.message = error.message;
+    }
+    throw errorObj;
   }
 
   return response.json();

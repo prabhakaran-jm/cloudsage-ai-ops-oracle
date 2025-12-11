@@ -449,7 +449,17 @@ app.post('/api/auth/login', async (c: Context<{ Bindings: AppEnv }>) => {
     
     console.log('[Auth] Comparing passwords - stored length:', userPassword?.length);
     
-    const passwordOk = userPassword ? await verifyPassword(userPassword, password) : false;
+    // Check if user has no password (passwordless account from Stripe/WorkOS)
+    if (!userPassword || userPassword === '') {
+      console.log('[Auth] User has no password (passwordless account):', email);
+      return c.json({ 
+        error: 'This account uses passwordless authentication',
+        code: 'PASSWORDLESS_ACCOUNT',
+        message: 'Please use WorkOS AuthKit (Enterprise SSO) to sign in. This account was created via Stripe checkout and does not have a password.'
+      }, 401);
+    }
+    
+    const passwordOk = await verifyPassword(userPassword, password);
 
     if (!passwordOk) {
       console.log('[Auth] Password mismatch for:', email);
@@ -1397,27 +1407,13 @@ async function initDatabase(db: any): Promise<boolean> {
         sqlQuery: `CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
           email TEXT UNIQUE NOT NULL,
-          password_hash TEXT,
+          password_hash TEXT NOT NULL,
           created_at TEXT,
           updated_at TEXT
         )`,
         format: 'json'
       });
-      
-      // Migrate existing table: allow NULL for password_hash (for Stripe/WorkOS users)
-      try {
-        await db.executeQuery({
-          sqlQuery: `ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`,
-          format: 'json'
-        });
-        console.log('[CloudSage] Updated users table to allow NULL password_hash');
-      } catch (alterErr: any) {
-        // Ignore if column is already nullable or ALTER not supported
-        // SQLite doesn't support ALTER COLUMN, so we'll handle this differently
-        if (!alterErr.message?.includes('syntax error') && !alterErr.message?.includes('no such column')) {
-          console.log('[CloudSage] Could not alter password_hash column (may already be nullable):', alterErr.message);
-        }
-      }
+      // Note: password_hash is NOT NULL, but we use empty string '' for passwordless users (Stripe/WorkOS)
     } catch (e) {
       console.log('[CloudSage] Users table already exists or error:', e);
     }

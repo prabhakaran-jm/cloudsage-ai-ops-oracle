@@ -24,7 +24,12 @@ export default function LoginPage() {
       await apiClient.login(email, password);
       router.push('/projects');
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      // Check if this is a passwordless account error
+      if (err.code === 'PASSWORDLESS_ACCOUNT' || err.message?.includes('passwordless')) {
+        setError('This account uses passwordless authentication. Please use "Continue with Enterprise SSO" above to sign in.');
+      } else {
+        setError(err.message || 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -75,17 +80,25 @@ export default function LoginPage() {
               <span className="ml-auto text-xs px-2 py-0.5 bg-[#5048e5]/20 text-[#a5a0f5] rounded">WorkOS</span>
             </button>
             <p className="text-xs text-center text-white/40 mt-2">
-              Powered by WorkOS • SSO, SAML, MFA supported
+              Powered by WorkOS • Email + OTP • SSO, SAML, MFA supported
             </p>
-            <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-              <p className="text-xs text-amber-200">
-                <strong>Note:</strong> WorkOS requires an organization to be set up in the dashboard. 
-                If you see an error, use email/password login below or set up WorkOS at{' '}
-                <a href="https://dashboard.workos.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">
-                  dashboard.workos.com
-                </a>
+            <div className="mt-3 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <p className="text-xs text-blue-200">
+                <strong>For Stripe subscribers:</strong> If you signed up via Stripe checkout, use this button to sign in. 
+                Your account uses passwordless authentication (email + OTP).
               </p>
             </div>
+            {WORKOS_ENABLED && (
+              <div className="mt-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+                <p className="text-xs text-amber-200">
+                  <strong>Note:</strong> WorkOS requires an organization to be set up in the dashboard. 
+                  If you see an error, set up WorkOS at{' '}
+                  <a href="https://dashboard.workos.com" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-100">
+                    dashboard.workos.com
+                  </a>
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="relative my-6">
