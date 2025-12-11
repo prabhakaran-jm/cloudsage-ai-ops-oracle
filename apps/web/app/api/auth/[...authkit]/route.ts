@@ -9,14 +9,18 @@ import { handleAuth } from '@workos-inc/authkit-nextjs';
 // - WORKOS_API_KEY
 // - WORKOS_COOKIE_PASSWORD (at least 32 chars)
 // - WORKOS_REDIRECT_URI (optional, but recommended)
-const config: any = {};
+const config: any = {
+  debug: process.env.NODE_ENV === 'development',
+};
 
-// Client ID - WorkOS AuthKit reads this from env automatically, but explicitly setting it can help
 if (process.env.WORKOS_CLIENT_ID) {
   config.clientId = process.env.WORKOS_CLIENT_ID;
 }
 
-// Cookie password is required for session encryption (must be at least 32 characters)
+if (process.env.WORKOS_API_KEY) {
+  config.apiKey = process.env.WORKOS_API_KEY;
+}
+
 if (process.env.WORKOS_COOKIE_PASSWORD) {
   config.cookiePassword = process.env.WORKOS_COOKIE_PASSWORD;
 } else {
@@ -29,6 +33,12 @@ if (process.env.WORKOS_COOKIE_PASSWORD) {
 if (process.env.WORKOS_REDIRECT_URI) {
   config.redirectUri = process.env.WORKOS_REDIRECT_URI;
 }
+
+// Add error handling
+config.onError = (error: any) => {
+  console.error('[WorkOS AuthKit Error]:', error);
+  // You could also report this to an error tracking service like Sentry here
+};
 
 // Export the WorkOS AuthKit handler
 // This handles /api/auth/signin, /api/auth/callback, /api/auth/signout, etc.

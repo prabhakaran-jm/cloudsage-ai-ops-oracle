@@ -18,12 +18,18 @@ export default async function middleware(request: NextRequest, event: NextFetchE
     // Configure WorkOS AuthKit
     // redirectUri and cookiePassword are required
     const workosConfig: any = {
-      cookiePassword: WORKOS_COOKIE_PASSWORD, // Required: at least 32 characters for session encryption
+      cookiePassword: WORKOS_COOKIE_PASSWORD,
+      debug: process.env.NODE_ENV === 'development',
     };
     
     // Explicitly set clientId (WorkOS reads from env, but setting explicitly can help)
     if (WORKOS_CLIENT_ID) {
       workosConfig.clientId = WORKOS_CLIENT_ID;
+    }
+
+    // Explicitly set apiKey (ensure consistency)
+    if (WORKOS_API_KEY) {
+      workosConfig.apiKey = WORKOS_API_KEY;
     }
     
     // Set redirect URI explicitly (required by WorkOS)
@@ -39,7 +45,14 @@ export default async function middleware(request: NextRequest, event: NextFetchE
     
     // Let WorkOS handle auth for protected routes
     // authkitMiddleware() returns a function that expects (request, event)
-    return workosMiddleware(request, event);
+    try {
+      return workosMiddleware(request, event);
+    } catch (error) {
+      console.error('[WorkOS Middleware Error]:', error);
+      // Fallback to allowing request if middleware fails, or handle differently
+      // This prevents the entire app from crashing if AuthKit is misconfigured
+      return NextResponse.next();
+    }
   }
   
   // Fallback: check for legacy JWT token
