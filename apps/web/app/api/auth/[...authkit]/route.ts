@@ -59,7 +59,7 @@ async function handleSignIn(req: NextRequest) {
     });
     
     const authorizationUrl = workos.userManagement.getAuthorizationUrl({
-      provider: 'authkit',
+      provider: 'authkit', // Using AuthKit, not SSO
       redirectUri: WORKOS_REDIRECT_URI,
       clientId: WORKOS_CLIENT_ID!,
     });
@@ -72,12 +72,21 @@ async function handleSignIn(req: NextRequest) {
       message: error?.message,
       error: error,
       clientId: WORKOS_CLIENT_ID ? `${WORKOS_CLIENT_ID.substring(0, 10)}...` : 'NOT SET',
+      provider: 'authkit',
     });
+    
+    // Provide helpful error message for AuthKit-specific issues
+    let errorHint = 'Check that WORKOS_CLIENT_ID in Netlify matches your WorkOS dashboard';
+    if (error?.message?.includes('client') || error?.message?.includes('SSO')) {
+      errorHint = 'Make sure AuthKit is enabled in WorkOS Dashboard (not SSO). Go to Dashboard → AuthKit → Set up AuthKit. Also verify the Client ID is from an AuthKit application, not an SSO application.';
+    }
+    
     return NextResponse.json(
       {
-        error: 'WorkOS sign-in error',
+        error: 'WorkOS AuthKit sign-in error',
         message: error?.message || 'Failed to initiate sign-in',
-        hint: 'Check that WORKOS_CLIENT_ID in Netlify matches your WorkOS dashboard',
+        hint: errorHint,
+        note: 'We are using AuthKit (provider: "authkit"), not SSO. Make sure AuthKit is enabled in your WorkOS dashboard.',
       },
       { status: 500 }
     );

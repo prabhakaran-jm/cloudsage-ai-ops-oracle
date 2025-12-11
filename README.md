@@ -102,14 +102,22 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 
 **WorkOS Dashboard Setup (Required):**
 
-### Step 1: Create an Application (if you don't have one)
+### Step 0: Enable AuthKit (IMPORTANT!)
+**⚠️ CloudSage uses AuthKit, NOT SSO!** Make sure you're configuring AuthKit, not SSO.
+
 1. Go to https://dashboard.workos.com
-2. If you see the "Let's get started" page, you need to create an application:
-   - Click on "Developer" in the left sidebar → "API Keys"
+2. In the left sidebar, look for **"AuthKit"** (not "SSO")
+3. If you see "Set up AuthKit" button, click it and follow the setup wizard
+4. If AuthKit is already set up, you should see the AuthKit dashboard
+5. **Important:** The Client ID you use must be from an **AuthKit application**, not an SSO application
+
+### Step 1: Get Your Client ID and API Key
+1. Go to https://dashboard.workos.com
+2. Click on "Developer" in the left sidebar → "API Keys"
    - Or go directly to: https://dashboard.workos.com/developer/api-keys
-   - Your **Client ID** and **API Key** are shown here
-   - **Copy these values** - you'll need them for Netlify environment variables
-3. If you already have a Client ID (like `client_01KB6F849F...`), you can skip to Step 2
+3. Your **Client ID** (starts with `client_`) and **API Key** (starts with `sk_`) are shown here
+4. **Copy these values** - you'll need them for Netlify environment variables
+5. **Verify:** Make sure this Client ID is associated with AuthKit, not SSO
 
 ### Step 2: Create an Organization
 1. Click "Organizations" in the left sidebar
@@ -117,25 +125,33 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 3. Name it (e.g., "CloudSage Users")
 4. **Important:** Note the Organization ID (you'll see it in the URL or organization details)
 
-### Step 3: Configure Your Application
-1. Go to "Configuration" → "Authentication" in the left sidebar
-2. **Add Redirect URI:**
-   - Scroll to "Redirect URIs" section
-   - Click "Add Redirect URI"
+### Step 3: Configure AuthKit Redirect URI
+1. Go to **"AuthKit"** in the left sidebar (NOT "SSO" or "Configuration")
+2. Click on **"Redirects"** or **"Configuration"** within AuthKit
+3. **Add Redirect URI:**
+   - Find the "Redirect URIs" section
+   - Click "Add Redirect URI" or "Add"
    - Enter exactly: `https://steady-melomakarona-42c054.netlify.app/api/auth/callback`
    - **Must match EXACTLY** (including `https://` and no trailing slash)
    - Click "Save"
-3. **Enable Authentication Method:**
-   - In the same Authentication page, find "Authentication Methods"
-   - Enable "Email Magic Link" (easiest for testing)
-   - Or configure OAuth providers (Google, Microsoft, etc.)
+4. **Configure Sign-in Endpoint (Optional but recommended):**
+   - In the same Redirects section, set "Sign-in endpoint" to: `https://steady-melomakarona-42c054.netlify.app/api/auth/signin`
+   - This helps WorkOS redirect users properly
 
-### Step 4: Link Organization to Application
+### Step 4: Enable Authentication Methods in AuthKit
+1. Still in the **AuthKit** section, go to **"Authentication"** or **"Settings"**
+2. **Enable Authentication Method:**
+   - Find "Authentication Methods" or "Sign-in Methods"
+   - Enable **"Email Magic Link"** (easiest for testing)
+   - Or configure OAuth providers (Google, Microsoft, etc.)
+   - **Note:** Make sure you're configuring AuthKit methods, not SSO methods
+
+### Step 5: Link Organization to Application
 1. Go to "Organizations" → Click on your organization
 2. Check that it's active and properly configured
-3. The organization should automatically be available to your application
+3. The organization should automatically be available to your AuthKit application
 
-### Step 5: Add Users to Organization
+### Step 6: Add Users to Organization
 1. Go to "Organizations" → Your Organization → "Members" tab
 2. Click "Add User" or "Invite User"
 3. Add your email address
