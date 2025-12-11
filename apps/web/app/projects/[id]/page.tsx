@@ -9,12 +9,55 @@ import RiskPanel from '@/components/RiskPanel';
 import ForecastPanel from '@/components/ForecastPanel';
 import HistoryChart from '@/components/HistoryChart';
 
-// Mock action items for demo
-const mockActionItems = [
-  { id: 1, text: 'Scale up web-worker-3 deployment.', completed: true, time: '2h ago', priority: 'high' },
-  { id: 2, text: 'Investigate high I/O wait on primary database.', completed: false, time: '4h ago', priority: 'medium' },
-  { id: 3, text: 'Review latest security patch for Redis cache.', completed: false, time: '1d ago', priority: 'medium' }
-];
+// Generate dynamic action items based on risk analysis
+function generateActionItems(riskScore: RiskScore | null, riskHistory: RiskHistoryEntry[]) {
+  if (!riskScore) {
+    return [
+      { id: 1, text: 'Ingest logs to generate risk analysis.', completed: false, time: 'now', priority: 'high' }
+    ];
+  }
+
+  const items: Array<{ id: number; text: string; completed: boolean; time: string; priority: string }> = [];
+  let id = 1;
+  const labels = riskScore.labels || [];
+  const factors = riskScore.factors || {};
+
+  // High priority items based on labels
+  if (labels.includes('Critical')) {
+    items.push({ id: id++, text: 'URGENT: Address critical system issues immediately.', completed: false, time: 'now', priority: 'critical' });
+  }
+  if (labels.includes('High Error Rate')) {
+    items.push({ id: id++, text: `Investigate error rate (${factors.errorRate || 'high'}%) - check application logs.`, completed: false, time: 'now', priority: 'high' });
+  }
+  if (labels.includes('Latency Issues')) {
+    items.push({ id: id++, text: `Address latency issues (${factors.latency || 'elevated'}%) - review slow queries.`, completed: false, time: 'now', priority: 'high' });
+  }
+  if (labels.includes('Resource Exhaustion')) {
+    items.push({ id: id++, text: 'Scale up resources or optimize memory usage.', completed: false, time: 'now', priority: 'high' });
+  }
+
+  // Medium priority based on score trends
+  if (riskHistory.length >= 2) {
+    const recent = riskHistory[0]?.score || 0;
+    const previous = riskHistory[1]?.score || 0;
+    if (recent > previous) {
+      items.push({ id: id++, text: 'Risk score increasing - review recent deployments.', completed: false, time: '1h ago', priority: 'medium' });
+    } else if (recent < previous) {
+      items.push({ id: id++, text: 'Risk score improving - continue monitoring.', completed: true, time: '1h ago', priority: 'low' });
+    }
+  }
+
+  // General recommendations based on score level
+  if (riskScore.score >= 70) {
+    items.push({ id: id++, text: 'Enable enhanced monitoring and alerting.', completed: false, time: '2h ago', priority: 'medium' });
+  } else if (riskScore.score >= 40) {
+    items.push({ id: id++, text: 'Schedule routine system health review.', completed: false, time: '4h ago', priority: 'low' });
+  } else {
+    items.push({ id: id++, text: 'System healthy - maintain current practices.', completed: true, time: '1d ago', priority: 'low' });
+  }
+
+  return items.slice(0, 5); // Limit to 5 items
+}
 
 export default function ProjectDetailPage() {
   const router = useRouter();
@@ -328,11 +371,13 @@ export default function ProjectDetailPage() {
               <div className="md:col-span-2 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10">
                 <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Action Items</h2>
                 <div className="space-y-4">
-                  {mockActionItems.map((item) => (
+                  {generateActionItems(riskScore, riskHistory).map((item) => (
                     <div
                       key={item.id}
                       className={`flex items-center gap-4 rounded-lg border-l-4 ${
-                        item.priority === 'high' ? 'border-[#5048e5]' : 'border-amber-500'
+                        item.priority === 'critical' ? 'border-red-500' :
+                        item.priority === 'high' ? 'border-[#5048e5]' :
+                        item.priority === 'medium' ? 'border-amber-500' : 'border-green-500'
                       } bg-white/5 p-4`}
                     >
                       <input
@@ -341,7 +386,14 @@ export default function ProjectDetailPage() {
                         type="checkbox"
                         readOnly
                       />
-                      <label className="flex-1 text-white/90">{item.text}</label>
+                      <div className="flex-1">
+                        <label className="text-white/90">{item.text}</label>
+                        <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                          item.priority === 'critical' ? 'bg-red-500/20 text-red-400' :
+                          item.priority === 'high' ? 'bg-[#5048e5]/20 text-[#a5a0f5]' :
+                          item.priority === 'medium' ? 'bg-amber-500/20 text-amber-400' : 'bg-green-500/20 text-green-400'
+                        }`}>{item.priority}</span>
+                      </div>
                       <span className="text-sm text-[#9795c6]">{item.time}</span>
                     </div>
                   ))}
