@@ -110,11 +110,20 @@ export default function ProjectDetailPage() {
       console.log('[ProjectDetail] Using immediate risk score from ingestion response:', newRiskScore);
       setRiskScore(newRiskScore);
       setRiskScoreTimestamp(newRiskScore.timestamp);
+      // Optimistically append to history for immediate trends feedback
+      setRiskHistory((prev) => {
+        const next = [
+          { score: newRiskScore.score, timestamp: newRiskScore.timestamp, labels: newRiskScore.labels || [] },
+          ...prev,
+        ];
+        return next.slice(0, 30);
+      });
     } else {
       // Only reload project (to get risk score) if we didn't get it directly
       loadProject();
     }
 
+    // Always refresh forecast and history to reflect latest context
     loadForecast();
     loadRiskHistory();
   };
