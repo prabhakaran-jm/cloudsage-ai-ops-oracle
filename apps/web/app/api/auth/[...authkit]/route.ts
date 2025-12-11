@@ -58,19 +58,24 @@ async function handleSignIn(req: NextRequest) {
       hasCookiePassword: !!WORKOS_COOKIE_PASSWORD,
     });
     
-    // Clear any existing WorkOS session cookie to force re-authentication
-    // This ensures users are prompted for email/OTP instead of auto-logging in
-    const redirectResponse = NextResponse.redirect(
-      workos.userManagement.getAuthorizationUrl({
-        provider: 'authkit', // Using AuthKit, not SSO
-        redirectUri: WORKOS_REDIRECT_URI,
-        clientId: WORKOS_CLIENT_ID!,
-        // Add state to force re-authentication
-        state: `force_auth_${Date.now()}`,
-      })
-    );
+    // Get the authorization URL and append prompt=login to force re-authentication
+    // This ensures WorkOS prompts for email/OTP even if there's an active session
+    let authorizationUrl = workos.userManagement.getAuthorizationUrl({
+      provider: 'authkit', // Using AuthKit, not SSO
+      redirectUri: WORKOS_REDIRECT_URI,
+      clientId: WORKOS_CLIENT_ID!,
+      // Add state to force re-authentication
+      state: `force_auth_${Date.now()}`,
+    });
     
-    // Clear the WorkOS session cookie
+    // Append prompt=login to force re-authentication (OAuth2 standard)
+    // This tells WorkOS to always prompt for credentials, ignoring any existing session
+    const url = new URL(authorizationUrl);
+    url.searchParams.set('prompt', 'login');
+    authorizationUrl = url.toString();
+    
+    // Clear any existing WorkOS session cookie
+    const redirectResponse = NextResponse.redirect(authorizationUrl);
     redirectResponse.cookies.delete('wos-session');
     redirectResponse.cookies.set('wos-session', '', {
       expires: new Date(0),
@@ -80,7 +85,7 @@ async function handleSignIn(req: NextRequest) {
       sameSite: 'lax',
     });
     
-    console.log('[WorkOS Sign-in] Authorization URL generated, session cookie cleared');
+    console.log('[WorkOS Sign-in] Authorization URL generated with prompt=login, session cookie cleared');
     
     return redirectResponse;
   } catch (error: any) {
