@@ -87,6 +87,12 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 - Custom API worker for log analysis and pattern detection
 - Health monitoring with latency tracking visible in UI
 
+### Authentication (WorkOS)
+- **Enterprise SSO** via WorkOS AuthKit
+- Supports SAML, OIDC, Google, Microsoft, and more
+- MFA and directory sync ready
+- Free tier: up to 1M monthly active users
+
 ---
 
 ## Monorepo layout

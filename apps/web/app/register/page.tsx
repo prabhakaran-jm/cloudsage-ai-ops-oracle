@@ -13,6 +13,11 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const handleWorkOSSignup = () => {
+    // Redirect to WorkOS AuthKit sign-in (handles both login and signup)
+    window.location.href = '/api/auth/signin';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -64,6 +69,32 @@ export default function RegisterPage() {
         </div>
 
         <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-xl p-8">
+          {/* WorkOS Enterprise SSO */}
+          <div className="mb-6">
+            <button
+              onClick={handleWorkOSSignup}
+              className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-white/20 text-sm font-medium rounded-lg text-white bg-white/5 hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5048e5] transition-colors"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" fill="currentColor"/>
+              </svg>
+              <span>Continue with Enterprise SSO</span>
+              <span className="ml-auto text-xs px-2 py-0.5 bg-[#5048e5]/20 text-[#a5a0f5] rounded">WorkOS</span>
+            </button>
+            <p className="text-xs text-center text-white/40 mt-2">
+              Enterprise-grade authentication • SSO, SAML, MFA
+            </p>
+          </div>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-white/10"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-[#121121] text-white/50">or register with email</span>
+            </div>
+          </div>
+
           <form className="space-y-6" onSubmit={handleSubmit}>
             {error && (
               <div className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg text-sm">
@@ -130,7 +161,7 @@ export default function RegisterPage() {
                 disabled={loading}
                 className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-lg text-white bg-gradient-to-br from-[#5048e5] to-purple-600 hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#5048e5] disabled:opacity-50 disabled:cursor-not-allowed transition-transform shadow-[0_0_20px_rgba(80,72,229,0.3)]"
               >
-                {loading ? 'Creating account...' : 'Create account'}
+                {loading ? 'Creating account...' : 'Create account with Email'}
               </button>
             </div>
           </form>
