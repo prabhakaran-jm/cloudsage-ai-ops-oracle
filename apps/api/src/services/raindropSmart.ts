@@ -505,11 +505,28 @@ export const smartSQL = {
           sqlQuery: interpolatedSql,
           format: 'json',
         });
-        // SmartSQL may return results in different properties depending on version
-        // Use || for arrays since [] is truthy - both || and ?? behave the same for arrays
-        // || is safer: if API returns non-array (0, false), it checks next property
-        const rows = result?.rows || result?.results || result?.data || (Array.isArray(result) ? result : []);
-        console.log(`[SmartSQL] (native) Query returned ${rows.length} rows, result keys:`, Object.keys(result || {}));
+        // SmartSQL returns: { message, results, status, queryExecuted, aiReasoning }
+        // results may be an array or a JSON string that needs parsing
+        let rows: any[] = [];
+        const rawResults = result?.results;
+        
+        if (Array.isArray(rawResults)) {
+          rows = rawResults;
+        } else if (typeof rawResults === 'string') {
+          // Try to parse JSON string
+          try {
+            const parsed = JSON.parse(rawResults);
+            rows = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            console.warn('[SmartSQL] results is string but not valid JSON:', rawResults.substring(0, 100));
+          }
+        } else if (result?.rows) {
+          rows = Array.isArray(result.rows) ? result.rows : [];
+        } else if (result?.data) {
+          rows = Array.isArray(result.data) ? result.data : [];
+        }
+        
+        console.log(`[SmartSQL] (native) Query returned ${rows.length} rows, rawResults type:`, typeof rawResults, 'isArray:', Array.isArray(rawResults));
         return rows;
       }
 
