@@ -117,19 +117,57 @@ async function handleCallback(req: NextRequest) {
       },
     });
     
-    // Redirect to projects page with sealed session cookie
-    const redirectResponse = NextResponse.redirect(new URL('/projects', req.url));
+    console.log('[WorkOS Callback] User authenticated:', {
+      email: user.email,
+      userId: user.id,
+      hasSealedSession: !!sealedSession,
+    });
     
-    if (sealedSession) {
-      redirectResponse.cookies.set('wos-session', sealedSession, {
-        httpOnly: true,
-        secure: true,
-        sameSite: 'lax',
-        path: '/',
+    // Exchange WorkOS user for backend JWT token
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://cloudsage-api.01kbv4q1d3d0twvhykd210v58w.lmapp.run/api';
+    
+    try {
+      const tokenResponse = await fetch(`${API_BASE_URL}/auth/workos-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: user.email,
+          workosUserId: user.id,
+        }),
       });
+      
+      if (!tokenResponse.ok) {
+        const error = await tokenResponse.json().catch(() => ({}));
+        console.error('[WorkOS Callback] Failed to get JWT token:', error);
+        return NextResponse.redirect(new URL('/auth/error?error=token_exchange_failed', req.url));
+      }
+      
+      const { token } = await tokenResponse.json();
+      
+      // Redirect to a page that will store the token in localStorage
+      // We'll pass the token via query parameter (it's a JWT, safe to pass in URL temporarily)
+      const redirectUrl = new URL('/auth/callback', req.url);
+      redirectUrl.searchParams.set('token', token);
+      
+      const redirectResponse = NextResponse.redirect(redirectUrl);
+      
+      // Also set WorkOS session cookie for future use
+      if (sealedSession) {
+        redirectResponse.cookies.set('wos-session', sealedSession, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'lax',
+          path: '/',
+        });
+      }
+      
+      return redirectResponse;
+    } catch (tokenError: any) {
+      console.error('[WorkOS Callback] Error exchanging for JWT:', tokenError);
+      return NextResponse.redirect(new URL('/auth/error?error=token_exchange_failed', req.url));
     }
-    
-    return redirectResponse;
   } catch (error: any) {
     console.error('[WorkOS Callback Error]:', error);
     return NextResponse.redirect(new URL('/auth/error?error=callback_failed', req.url));
@@ -138,8 +176,13 @@ async function handleCallback(req: NextRequest) {
 
 // Handle sign-out
 async function handleSignOut(req: NextRequest) {
+  // Clear WorkOS session cookie
   const redirectResponse = NextResponse.redirect(new URL('/login', req.url));
   redirectResponse.cookies.delete('wos-session');
+  
+  // Note: localStorage token will be cleared by the frontend on logout
+  // The frontend logout function already handles this
+  
   return redirectResponse;
 }
 
