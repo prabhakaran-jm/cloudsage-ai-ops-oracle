@@ -27,10 +27,12 @@ function generateActionItems(riskScore: RiskScore | null, riskHistory: RiskHisto
     items.push({ id: id++, text: 'URGENT: Address critical system issues immediately.', completed: false, time: 'now', priority: 'critical' });
   }
   if (labels.includes('High Error Rate')) {
-    items.push({ id: id++, text: `Investigate error rate (${factors.errorRate || 'high'}%) - check application logs.`, completed: false, time: 'now', priority: 'high' });
+    const errorRate = typeof factors.errorRate === 'number' ? Math.round(factors.errorRate) : factors.errorRate || 'high';
+    items.push({ id: id++, text: `Investigate error rate (${errorRate}%) - check application logs.`, completed: false, time: 'now', priority: 'high' });
   }
   if (labels.includes('Latency Issues')) {
-    items.push({ id: id++, text: `Address latency issues (${factors.latency || 'elevated'}%) - review slow queries.`, completed: false, time: 'now', priority: 'high' });
+    const latency = typeof factors.latency === 'number' ? Math.round(factors.latency) : factors.latency || 'elevated';
+    items.push({ id: id++, text: `Address latency issues (${latency}%) - review slow queries.`, completed: false, time: 'now', priority: 'high' });
   }
   if (labels.includes('Resource Exhaustion')) {
     items.push({ id: id++, text: 'Scale up resources or optimize memory usage.', completed: false, time: 'now', priority: 'high' });
