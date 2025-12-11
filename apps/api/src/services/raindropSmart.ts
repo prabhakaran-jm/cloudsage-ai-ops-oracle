@@ -506,8 +506,9 @@ export const smartSQL = {
           format: 'json',
         });
         // SmartSQL may return results in different properties depending on version
-        const rows = result?.rows || result?.results || result?.data || (Array.isArray(result) ? result : []);
-        console.log(`[SmartSQL] (native) Query returned ${rows.length} rows, result keys:`, Object.keys(result || {}));
+        // Use ?? (nullish coalescing) to handle empty arrays correctly ([] is truthy but we want first defined)
+        const rows = result?.rows ?? result?.results ?? result?.data ?? (Array.isArray(result) ? result : []);
+        console.log(`[SmartSQL] (native) Query returned ${rows.length} rows, result keys:`, Object.keys(result ?? {}));
         return rows;
       }
 
@@ -529,7 +530,7 @@ export const smartSQL = {
         throw new Error('SmartSQL unavailable');
       }
 
-      const rows = result?.rows || [];
+      const rows = result?.rows ?? [];
       console.log(`[SmartSQL] Query returned ${rows.length} rows:`, sql.substring(0, 50));
       return rows;
     } catch (error: any) {
@@ -554,9 +555,10 @@ export const smartSQL = {
           format: 'json',
         });
         // SmartSQL may return results in different properties
-        const affectedRows = result?.affectedRows || result?.rowCount || result?.changes || 0;
-        console.log(`[SmartSQL] (native) Execute result keys:`, Object.keys(result || {}));
-        return { affectedRows, insertId: result?.insertId || result?.lastRowId };
+        // Use ?? (nullish coalescing) since 0 is a valid affectedRows value but falsy with ||
+        const affectedRows = result?.affectedRows ?? result?.rowCount ?? result?.changes ?? 0;
+        console.log(`[SmartSQL] (native) Execute result keys:`, Object.keys(result ?? {}));
+        return { affectedRows, insertId: result?.insertId ?? result?.lastRowId };
       }
 
       // Fallback to MCP
@@ -577,9 +579,9 @@ export const smartSQL = {
         throw new Error('SmartSQL unavailable');
       }
 
-      const affectedRows = result?.affectedRows || 0;
+      const affectedRows = result?.affectedRows ?? 0;
       console.log(`[SmartSQL] Execute affected ${affectedRows} rows:`, sql.substring(0, 50));
-      return result || { affectedRows: 0 };
+      return result ?? { affectedRows: 0 };
     } catch (error: any) {
       console.error('[SmartSQL] Execute error:', error.message);
       throw error;
