@@ -458,9 +458,12 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
-        // Use sqlQuery for direct SQL execution with bindings for D1 params
+        // Use sqlQuery for direct SQL execution with args for D1 params
+        // Try multiple param names to find what Raindrop expects
         const result = await mainDb.executeQuery({
           sqlQuery: sql,
+          args: params,
+          params: params,
           bindings: params,
           format: 'json',
         });
@@ -504,9 +507,12 @@ export const smartSQL = {
       // Prefer native SmartSQL binding if available
       const mainDb = (env && (env.MAIN_DB || env.main_db)) as any;
       if (mainDb?.executeQuery) {
-        // Use sqlQuery for direct SQL execution with bindings for D1 params
+        // Use sqlQuery for direct SQL execution with args for D1 params
+        // Try multiple param names to find what Raindrop expects
         const result = await mainDb.executeQuery({
           sqlQuery: sql,
+          args: params,
+          params: params,
           bindings: params,
           format: 'json',
         });
