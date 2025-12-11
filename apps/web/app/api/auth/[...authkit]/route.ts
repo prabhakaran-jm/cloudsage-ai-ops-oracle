@@ -58,6 +58,47 @@ async function handleSignIn(req: NextRequest) {
       hasCookiePassword: !!WORKOS_COOKIE_PASSWORD,
     });
     
+    // CRITICAL: Revoke any existing WorkOS session before redirecting to sign-in
+    // This ensures WorkOS doesn't auto-authenticate with a previous session
+    const sessionCookie = req.cookies.get('wos-session')?.value;
+    if (sessionCookie) {
+      try {
+        console.log('[WorkOS Sign-in] Found existing session cookie, attempting to revoke...');
+        const session = await workos.userManagement.loadSealedSession({
+          sessionData: sessionCookie,
+          cookiePassword: WORKOS_COOKIE_PASSWORD!,
+        });
+
+        // Try to extract session ID
+        let sessionId: string | undefined;
+        
+        if ('sessionId' in session && typeof (session as any).sessionId === 'string') {
+          sessionId = (session as any).sessionId;
+        } else if ('accessToken' in session && typeof (session as any).accessToken === 'string') {
+          try {
+            const accessToken = (session as any).accessToken;
+            const payload = JSON.parse(
+              Buffer.from(accessToken.split('.')[1], 'base64').toString()
+            );
+            sessionId = payload.sid;
+          } catch (decodeError) {
+            console.warn('[WorkOS Sign-in] Failed to decode access token:', decodeError);
+          }
+        }
+
+        if (sessionId) {
+          await workos.userManagement.revokeSession({ sessionId });
+          console.log('[WorkOS Sign-in] Existing session revoked before sign-in:', sessionId);
+        } else {
+          console.warn('[WorkOS Sign-in] Could not extract session ID, will clear cookie only');
+        }
+      } catch (revokeError: any) {
+        console.warn('[WorkOS Sign-in] Failed to revoke existing session (will continue anyway):', {
+          message: revokeError?.message,
+        });
+      }
+    }
+    
     // Get the authorization URL and append prompt=login to force re-authentication
     // This ensures WorkOS prompts for email/OTP even if there's an active session
     let authorizationUrl = workos.userManagement.getAuthorizationUrl({
@@ -85,7 +126,7 @@ async function handleSignIn(req: NextRequest) {
       sameSite: 'lax',
     });
     
-    console.log('[WorkOS Sign-in] Authorization URL generated with prompt=login, session cookie cleared');
+    console.log('[WorkOS Sign-in] Authorization URL generated with prompt=login, session revoked and cookie cleared');
     
     return redirectResponse;
   } catch (error: any) {
