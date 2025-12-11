@@ -50,19 +50,34 @@ async function handleSignIn(req: NextRequest) {
   }
   
   try {
+    // Log configuration for debugging (without exposing secrets)
+    console.log('[WorkOS Sign-in] Configuration:', {
+      clientId: WORKOS_CLIENT_ID ? `${WORKOS_CLIENT_ID.substring(0, 10)}...` : 'NOT SET',
+      redirectUri: WORKOS_REDIRECT_URI,
+      hasApiKey: !!WORKOS_API_KEY,
+      hasCookiePassword: !!WORKOS_COOKIE_PASSWORD,
+    });
+    
     const authorizationUrl = workos.userManagement.getAuthorizationUrl({
       provider: 'authkit',
       redirectUri: WORKOS_REDIRECT_URI,
       clientId: WORKOS_CLIENT_ID!,
     });
     
+    console.log('[WorkOS Sign-in] Authorization URL generated:', authorizationUrl.substring(0, 100) + '...');
+    
     return NextResponse.redirect(authorizationUrl);
   } catch (error: any) {
-    console.error('[WorkOS Sign-in Error]:', error);
+    console.error('[WorkOS Sign-in Error]:', {
+      message: error?.message,
+      error: error,
+      clientId: WORKOS_CLIENT_ID ? `${WORKOS_CLIENT_ID.substring(0, 10)}...` : 'NOT SET',
+    });
     return NextResponse.json(
       {
         error: 'WorkOS sign-in error',
         message: error?.message || 'Failed to initiate sign-in',
+        hint: 'Check that WORKOS_CLIENT_ID in Netlify matches your WorkOS dashboard',
       },
       { status: 500 }
     );
