@@ -277,7 +277,7 @@ export async function storeRiskScore(projectId: string, riskScore: any, env?: an
   const ts = riskScore.timestamp || new Date().toISOString();
   try {
     await smartSQL.execute(
-      'INSERT INTO risk_history (id, project_id, score, labels, factors, timestamp) VALUES (?, ?, ?, ?, ?, ?)',
+      'INSERT INTO risk_history (id, project_id, score, labels, factors, timestamp) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
       [
         `risk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         projectId,
@@ -332,7 +332,7 @@ export async function storeRiskScore(projectId: string, riskScore: any, env?: an
 export async function getRiskHistory(projectId: string, limit = 50, env?: any) {
   try {
     const rows = await smartSQL.query(
-      'SELECT score, labels, factors, timestamp FROM risk_history WHERE project_id = ? ORDER BY timestamp DESC LIMIT ?',
+      'SELECT score, labels, factors, timestamp FROM risk_history WHERE project_id = ?1 ORDER BY timestamp DESC LIMIT ?2',
       [projectId, limit],
       env
     );
