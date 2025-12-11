@@ -271,7 +271,6 @@ async function requireAuth(c: Context<{ Bindings: AppEnv }>): Promise<string | n
   const authHeader = c.req.header('authorization');
   const userId = await getUserIdFromToken(authHeader, c.env);
   if (!userId) {
-    c.json({ error: 'Unauthorized' }, 401);
     return null;
   }
   return userId;
@@ -567,19 +566,61 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
 
     console.log('[Projects] Project found:', projectId);
 
-    // Get risk score
-    const { calculateRiskScoreFromVultr } = await import('../services/vultrClient');
-    const { getProjectRiskScore } = await import('../services/riskLogic');
-    const { getLogsForProject } = await import('../routes/ingest');
-
-    // Pass env so we read logs via native bindings
-    const projectLogs = await getLogsForProject(projectId, c.env);
-    let riskScore;
+    // Try to reuse latest stored risk score before recalculating
+    let riskScore: any = null;
     try {
-      riskScore = await calculateRiskScoreFromVultr({ projectId, logs: projectLogs });
-    } catch (error) {
-      console.warn('[Projects] Vultr worker unavailable, using local calculation');
-      riskScore = getProjectRiskScore(projectLogs);
+      const rows = await smartSQL.query(
+        'SELECT score, labels, factors, timestamp FROM risk_history WHERE project_id = ? ORDER BY timestamp DESC LIMIT 1',
+        [projectId],
+        c.env
+      );
+      if (rows?.length) {
+        const row = rows[0];
+        riskScore = {
+          score: row.score,
+          labels: typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels || [],
+          factors: typeof row.factors === 'string' ? JSON.parse(row.factors) : row.factors || {},
+          timestamp: row.timestamp,
+        };
+      }
+    } catch (err) {
+      console.warn('[Projects] Failed to load cached risk score from SmartSQL:', err);
+    }
+    if (!riskScore) {
+      try {
+        const { getRiskHistory } = await import('../routes/ingest');
+        const history = await getRiskHistory(projectId, 1, c.env);
+        if (history?.length) {
+          riskScore = history[0];
+        }
+      } catch (err) {
+        console.warn('[Projects] Failed to load cached risk score from buckets/memory:', err);
+      }
+    }
+
+    // Get risk score
+    if (!riskScore) {
+      const { calculateRiskScoreFromVultr } = await import('../services/vultrClient');
+      const { getProjectRiskScore } = await import('../services/riskLogic');
+      const { getLogsForProject } = await import('../routes/ingest');
+
+      const projectLogs = await getLogsForProject(projectId, c.env);
+      try {
+        riskScore = await calculateRiskScoreFromVultr({ projectId, logs: projectLogs });
+      } catch (error) {
+        console.warn('[Projects] Vultr worker unavailable, using local calculation');
+        riskScore = getProjectRiskScore(projectLogs);
+      }
+
+      // Persist newly calculated risk score so subsequent loads are fast
+      try {
+        const { storeRiskScore } = await import('../routes/ingest');
+        if (riskScore) {
+          await storeRiskScore(projectId, riskScore, c.env);
+        }
+      } catch (err) {
+        console.warn('[Projects] Failed to persist calculated risk score:', err);
+      }
     }
 
     return c.json({
@@ -1089,7 +1130,28 @@ app.get('/api/forecast/:projectId/risk-history', async (c: Context<{ Bindings: A
     }
     const { limit = 30 } = parsedQuery.data;
     const { getRiskHistory } = await import('../routes/ingest');
-    const history = await getRiskHistory(projectId, limit, c.env);
+    let history = await getRiskHistory(projectId, limit, c.env);
+
+    // If still empty, try to include the latest cached risk score
+    if (!history || history.length === 0) {
+      try {
+        const rows = await smartSQL.query(
+          'SELECT score, labels, factors, timestamp FROM risk_history WHERE project_id = ? ORDER BY timestamp DESC LIMIT 1',
+          [projectId],
+          c.env
+        );
+        if (rows?.length) {
+          history = rows.map(row => ({
+            score: row.score,
+            labels: typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels,
+            factors: typeof row.factors === 'string' ? JSON.parse(row.factors) : row.factors,
+            timestamp: row.timestamp,
+          }));
+        }
+      } catch (err) {
+        console.warn('[RiskHistory] Fallback latest fetch failed:', err);
+      }
+    }
 
     return c.json({
       history: history.map((h: any) => ({

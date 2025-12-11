@@ -273,8 +273,9 @@ const riskHistory: Map<string, Array<{
 }>> = new Map();
 
 export async function storeRiskScore(projectId: string, riskScore: any, env?: any) {
+  let stored = false;
+  const ts = riskScore.timestamp || new Date().toISOString();
   try {
-    // Try SmartSQL first
     await smartSQL.execute(
       'INSERT INTO risk_history (id, project_id, score, labels, factors, timestamp) VALUES (?, ?, ?, ?, ?, ?)',
       [
@@ -283,34 +284,53 @@ export async function storeRiskScore(projectId: string, riskScore: any, env?: an
         riskScore.score,
         JSON.stringify(riskScore.labels),
         JSON.stringify(riskScore.factors || {}),
-        riskScore.timestamp,
+        ts,
       ],
       env
     );
-    return; // Success, don't use fallback
+    stored = true;
   } catch (error) {
-    console.warn('SmartSQL insert failed, using fallback:', error);
+    console.warn('SmartSQL insert failed, continuing to bucket fallback:', error);
+  }
+
+  // Persist to SmartBuckets for durability/fallback
+  try {
+    await smartBuckets.put(
+      'risk-history',
+      `${projectId}/${ts}`,
+      {
+        projectId,
+        score: riskScore.score,
+        labels: riskScore.labels,
+        timestamp: ts,
+        factors: riskScore.factors,
+      },
+      env
+    );
+    stored = true;
+  } catch (err) {
+    console.warn('SmartBuckets risk-history write failed:', err);
   }
   
-  // Fallback to in-memory storage
-  const history = riskHistory.get(projectId) || [];
-  history.push({
-    projectId,
-    score: riskScore.score,
-    labels: riskScore.labels,
-    timestamp: riskScore.timestamp,
-    factors: riskScore.factors,
-  });
-  // Keep only last 100 entries per project
-  if (history.length > 100) {
-    history.shift();
+  // Fallback to in-memory storage if nothing was persisted
+  if (!stored) {
+    const history = riskHistory.get(projectId) || [];
+    history.push({
+      projectId,
+      score: riskScore.score,
+      labels: riskScore.labels,
+      timestamp: ts,
+      factors: riskScore.factors,
+    });
+    if (history.length > 100) {
+      history.shift();
+    }
+    riskHistory.set(projectId, history);
   }
-  riskHistory.set(projectId, history);
 }
 
 export async function getRiskHistory(projectId: string, limit = 50, env?: any) {
   try {
-    // Try SmartSQL first
     const rows = await smartSQL.query(
       'SELECT score, labels, factors, timestamp FROM risk_history WHERE project_id = ? ORDER BY timestamp DESC LIMIT ?',
       [projectId, limit],
@@ -330,9 +350,28 @@ export async function getRiskHistory(projectId: string, limit = 50, env?: any) {
       return mapped;
     }
   } catch (error) {
-    console.warn('[getRiskHistory] SmartSQL query failed, using fallback:', error);
+    console.warn('[getRiskHistory] SmartSQL query failed, trying bucket fallback:', error);
   }
   
+  // SmartBuckets fallback
+  try {
+    const keys = await smartBuckets.list('risk-history', `${projectId}/`, env);
+    if (keys.length > 0) {
+      const entries = [];
+      const recentKeys = keys.sort().slice(-limit).reverse();
+      for (const key of recentKeys) {
+        const entry = await smartBuckets.get('risk-history', key, env);
+        if (entry) entries.push(entry);
+      }
+      if (entries.length > 0) {
+        console.log(`[getRiskHistory] Using SmartBuckets fallback, found ${entries.length} entries`);
+        return entries;
+      }
+    }
+  } catch (err) {
+    console.warn('[getRiskHistory] SmartBuckets fallback failed:', err);
+  }
+
   // Fallback to in-memory storage
   const history = riskHistory.get(projectId) || [];
   console.log(`[getRiskHistory] Using fallback, found ${history.length} entries`);
