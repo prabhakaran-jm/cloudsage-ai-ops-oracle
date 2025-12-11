@@ -505,8 +505,9 @@ export const smartSQL = {
           sqlQuery: interpolatedSql,
           format: 'json',
         });
-        const rows = result?.rows || [];
-        console.log(`[SmartSQL] (native) Query returned ${rows.length} rows`);
+        // SmartSQL may return results in different properties depending on version
+        const rows = result?.rows || result?.results || result?.data || (Array.isArray(result) ? result : []);
+        console.log(`[SmartSQL] (native) Query returned ${rows.length} rows, result keys:`, Object.keys(result || {}));
         return rows;
       }
 
@@ -552,9 +553,10 @@ export const smartSQL = {
           sqlQuery: interpolatedSql,
           format: 'json',
         });
-        const affectedRows = result?.affectedRows || result?.rowCount || 0;
-        console.log(`[SmartSQL] (native) Execute affected ${affectedRows} rows`);
-        return { affectedRows, insertId: result?.insertId };
+        // SmartSQL may return results in different properties
+        const affectedRows = result?.affectedRows || result?.rowCount || result?.changes || 0;
+        console.log(`[SmartSQL] (native) Execute result keys:`, Object.keys(result || {}));
+        return { affectedRows, insertId: result?.insertId || result?.lastRowId };
       }
 
       // Fallback to MCP
