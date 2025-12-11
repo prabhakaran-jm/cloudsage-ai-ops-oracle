@@ -140,23 +140,34 @@ async function handleCallback(req: NextRequest) {
       },
     });
     
-    // First, test if API is reachable
+    // First, test if API is reachable (API_BASE_URL already includes /api)
     try {
-      const healthCheck = await fetch(`${API_BASE_URL}/health`, {
+      const healthUrl = `${API_BASE_URL}/health`;
+      console.log('[WorkOS Callback] Testing API connectivity:', healthUrl);
+      
+      const healthCheck = await fetch(healthUrl, {
         method: 'GET',
         signal: AbortSignal.timeout(5000), // 5 second timeout
-      }).catch(() => null);
+      }).catch((err) => {
+        console.warn('[WorkOS Callback] Health check fetch failed:', err?.message);
+        return null;
+      });
       
       if (healthCheck) {
-        console.log('[WorkOS Callback] API health check:', {
+        const healthText = await healthCheck.text().catch(() => '');
+        console.log('[WorkOS Callback] API health check result:', {
           status: healthCheck.status,
           ok: healthCheck.ok,
+          text: healthText.substring(0, 100),
         });
       } else {
-        console.warn('[WorkOS Callback] API health check failed - API may be unreachable');
+        console.error('[WorkOS Callback] API health check failed - API may be unreachable or CORS blocked');
       }
-    } catch (healthError) {
-      console.warn('[WorkOS Callback] API health check error:', healthError);
+    } catch (healthError: any) {
+      console.error('[WorkOS Callback] API health check error:', {
+        message: healthError?.message,
+        name: healthError?.name,
+      });
     }
     
     try {
