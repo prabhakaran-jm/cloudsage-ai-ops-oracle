@@ -1,19 +1,36 @@
 # CloudSage – AI Ops Oracle for Solo Engineers
 
-> **✅ STATUS UPDATE (Dec 8, 2025):** Critical auth bug fixed! Email normalization now working. All features tested and functional. Ready for hackathon demo! 🎉
+> **🤖 Your AI SRE that never sleeps.** CloudSage transforms noisy logs into actionable risk forecasts.
+
+[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen)](https://steady-melomakarona-42c054.netlify.app)
+[![Built on Raindrop](https://img.shields.io/badge/built%20on-Raindrop-purple)](https://raindrop.run)
+[![Powered by Vultr](https://img.shields.io/badge/powered%20by-Vultr-007BFC)](https://vultr.com)
 
 CloudSage is an AI-powered Ops assistant for solo developers and tiny teams.
-You paste logs and infra signals.
-CloudSage predicts near-term failure risk and gives you a short, practical action plan.
-Built for **The AI Champion Ship – Vibe. Code. Ship.**
+Paste your logs → Get a risk score → See AI-powered forecasts → Take action.
+Built for **The AI Champion Ship** hackathon.
 
 ## 🚀 Live Demo
 
-- **Frontend:** https://steady-melomakarona-42c054.netlify.app
-- **Backend API:** https://cloudsage-api.01k844rvnc9e5n807arvr4wn0t.lmapp.run
-- **Demo Video:** [Coming soon]
+| Component | URL |
+|-----------|-----|
+| **Frontend** | https://steady-melomakarona-42c054.netlify.app |
+| **Backend API** | https://cloudsage-api.01kbv4q1d3d0twvhykd210v58w.lmapp.run/api |
+| **Demo Video** | [Watch on YouTube](https://youtube.com/watch?v=COMING_SOON) |
 
-Try it now! Register an account and start analyzing your logs.
+**Try it now!** Register an account and use "Load Sample Logs" for instant demo.
+
+## 📸 Screenshots
+
+<p align="center">
+  <img src="docs/images/dashboard.png" alt="Risk Dashboard" width="45%">
+  <img src="docs/images/forecast.png" alt="AI Forecast" width="45%">
+</p>
+
+<p align="center">
+  <img src="docs/images/action-items.png" alt="Action Items" width="45%">
+  <img src="docs/images/history.png" alt="Historical Trends" width="45%">
+</p>
 
 ---
 
@@ -47,18 +64,28 @@ CloudSage turns yesterday's signals into tomorrow's risk forecast.
 
 ---
 
-## Tech stack
+## 🛠️ Tech Stack
 
-- **Frontend:** Next.js + TypeScript + Tailwind CSS
-- **Backend:** Raindrop MCP server (TypeScript)
-- **AI / memory layer:** Raindrop SmartComponents
-  - SmartBuckets for raw logs and forecasts
-  - SmartSQL for risk history and feedback
-  - SmartMemory for project baselines and learning
-  - SmartInference for AI-powered forecast generation
-- **Compute:** Vultr Cloud Compute / GPU for risk scoring worker
-- **Auth (MVP):** Email + password
-- **Payments (optional later):** Stripe
+### Core Platform
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | Next.js 14 + TypeScript + Tailwind CSS |
+| **Backend** | Raindrop Platform (TypeScript) |
+| **Compute** | Vultr Cloud Compute |
+| **Deployment** | Raindrop + Netlify |
+
+### Raindrop SmartComponents (✅ All Four Used!)
+| Component | Usage in CloudSage |
+|-----------|-------------------|
+| **SmartBuckets** | Store logs, forecasts, project data with AI-powered search |
+| **SmartSQL** | Risk history, user data, trend analysis |
+| **SmartMemory** | Project baselines, pattern learning |
+| **SmartInference** | AI-powered forecast generation |
+
+### Vultr Integration
+- **Vultr Cloud Compute** - Risk scoring engine with real-time analysis
+- Custom API worker for log analysis and pattern detection
+- Health monitoring with latency tracking visible in UI
 
 ---
 
