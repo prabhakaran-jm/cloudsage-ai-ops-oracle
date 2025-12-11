@@ -277,7 +277,7 @@ export async function storeRiskScore(projectId: string, riskScore: any, env?: an
   const ts = riskScore.timestamp || new Date().toISOString();
   try {
     await smartSQL.execute(
-      'INSERT INTO risk_history (id, project_id, score, labels, factors, timestamp) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
+      'INSERT INTO risk_history (id, project_id, score, labels, factors, timestamp) VALUES (?, ?, ?, ?, ?, ?)',
       [
         `risk_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         projectId,
@@ -314,25 +314,25 @@ export async function storeRiskScore(projectId: string, riskScore: any, env?: an
   
   // Fallback to in-memory storage if nothing was persisted
   if (!stored) {
-    const history = riskHistory.get(projectId) || [];
-    history.push({
-      projectId,
-      score: riskScore.score,
-      labels: riskScore.labels,
+  const history = riskHistory.get(projectId) || [];
+  history.push({
+    projectId,
+    score: riskScore.score,
+    labels: riskScore.labels,
       timestamp: ts,
-      factors: riskScore.factors,
-    });
-    if (history.length > 100) {
-      history.shift();
-    }
-    riskHistory.set(projectId, history);
+    factors: riskScore.factors,
+  });
+  if (history.length > 100) {
+    history.shift();
+  }
+  riskHistory.set(projectId, history);
   }
 }
 
 export async function getRiskHistory(projectId: string, limit = 50, env?: any) {
   try {
     const rows = await smartSQL.query(
-      'SELECT score, labels, factors, timestamp FROM risk_history WHERE project_id = ?1 ORDER BY timestamp DESC LIMIT ?2',
+      'SELECT score, labels, factors, timestamp FROM risk_history WHERE project_id = ? ORDER BY timestamp DESC LIMIT ?',
       [projectId, limit],
       env
     );
@@ -371,7 +371,7 @@ export async function getRiskHistory(projectId: string, limit = 50, env?: any) {
   } catch (err) {
     console.warn('[getRiskHistory] SmartBuckets fallback failed:', err);
   }
-
+  
   // Fallback to in-memory storage
   const history = riskHistory.get(projectId) || [];
   console.log(`[getRiskHistory] Using fallback, found ${history.length} entries`);
