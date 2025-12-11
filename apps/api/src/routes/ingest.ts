@@ -314,18 +314,18 @@ export async function storeRiskScore(projectId: string, riskScore: any, env?: an
   
   // Fallback to in-memory storage if nothing was persisted
   if (!stored) {
-  const history = riskHistory.get(projectId) || [];
-  history.push({
-    projectId,
-    score: riskScore.score,
-    labels: riskScore.labels,
+    const history = riskHistory.get(projectId) || [];
+    history.push({
+      projectId,
+      score: riskScore.score,
+      labels: riskScore.labels,
       timestamp: ts,
-    factors: riskScore.factors,
-  });
-  if (history.length > 100) {
-    history.shift();
-  }
-  riskHistory.set(projectId, history);
+      factors: riskScore.factors,
+    });
+    if (history.length > 100) {
+      history.shift();
+    }
+    riskHistory.set(projectId, history);
   }
 }
 
