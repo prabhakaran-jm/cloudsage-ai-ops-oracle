@@ -352,8 +352,8 @@ app.post('/api/auth/register', async (c: Context<{ Bindings: AppEnv }>) => {
       }
     } catch (err) {
       console.warn('[Auth] SmartSQL insert failed, storing in SmartBuckets fallback:', err);
-      await smartBuckets.put('users', email, userData, c.env);
-      console.log('[Auth] User created in SmartBuckets:', email);
+    await smartBuckets.put('users', email, userData, c.env);
+    console.log('[Auth] User created in SmartBuckets:', email);
     }
 
     const token = await signToken(userId, c.env);
@@ -416,7 +416,7 @@ app.post('/api/auth/login', async (c: Context<{ Bindings: AppEnv }>) => {
     const userPassword = actualUser.password_hash || actualUser.password || user.password_hash || user.password;
     
     console.log('[Auth] Comparing passwords - stored length:', userPassword?.length);
-
+    
     const passwordOk = userPassword ? await verifyPassword(userPassword, password) : false;
 
     if (!passwordOk) {
@@ -471,7 +471,7 @@ app.get('/api/projects', async (c: Context<{ Bindings: AppEnv }>) => {
       }
     } catch (err) {
       console.warn('[Projects] SmartSQL list failed, continuing with buckets:', err);
-    }
+      }
 
     try {
       const keys = await smartBuckets.list('projects', `${userId}/`, c.env);
@@ -479,11 +479,11 @@ app.get('/api/projects', async (c: Context<{ Bindings: AppEnv }>) => {
         const p = await smartBuckets.get('projects', key, c.env);
         if (p && (p.id || p.name) && !projectMap.has(p.id)) {
           projectMap.set(p.id, {
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            createdAt: p.created_at || p.createdAt,
-            updatedAt: p.updated_at || p.updatedAt,
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      createdAt: p.created_at || p.createdAt,
+      updatedAt: p.updated_at || p.updatedAt,
           });
         }
       }
@@ -540,8 +540,8 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
     if (!project) {
       const projectData = await smartBuckets.get('projects', `${userId}/${projectId}`, c.env);
       if (projectData && (projectData.id || projectData.name)) {
-        project = projectData;
-      }
+          project = projectData;
+        }
     }
 
     if (!project) {
@@ -600,16 +600,16 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
 
     // Get risk score
     if (!riskScore) {
-      const { calculateRiskScoreFromVultr } = await import('../services/vultrClient');
-      const { getProjectRiskScore } = await import('../services/riskLogic');
-      const { getLogsForProject } = await import('../routes/ingest');
+    const { calculateRiskScoreFromVultr } = await import('../services/vultrClient');
+    const { getProjectRiskScore } = await import('../services/riskLogic');
+    const { getLogsForProject } = await import('../routes/ingest');
 
       const projectLogs = await getLogsForProject(projectId, c.env);
-      try {
-        riskScore = await calculateRiskScoreFromVultr({ projectId, logs: projectLogs });
-      } catch (error) {
-        console.warn('[Projects] Vultr worker unavailable, using local calculation');
-        riskScore = getProjectRiskScore(projectLogs);
+    try {
+      riskScore = await calculateRiskScoreFromVultr({ projectId, logs: projectLogs });
+    } catch (error) {
+      console.warn('[Projects] Vultr worker unavailable, using local calculation');
+      riskScore = getProjectRiskScore(projectLogs);
       }
 
       // Persist newly calculated risk score so subsequent loads are fast
@@ -706,7 +706,7 @@ app.post('/api/projects', async (c: Context<{ Bindings: AppEnv }>) => {
 
       // Also store in Buckets for resilience
       try {
-        await smartBuckets.put('projects', `${userId}/${projectId}`, projectData, c.env);
+    await smartBuckets.put('projects', `${userId}/${projectId}`, projectData, c.env);
       } catch (e) {
         console.warn('[Projects] Failed to write project to Buckets (secondary):', e);
       }
@@ -798,7 +798,7 @@ app.put('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
       );
     } catch (err) {
       console.warn('[Projects] SmartSQL update failed, storing in Buckets:', err);
-      await smartBuckets.put('projects', key, updatedProject, c.env);
+    await smartBuckets.put('projects', key, updatedProject, c.env);
     }
 
     return c.json({
@@ -912,8 +912,8 @@ app.post('/api/ingest/:projectId', async (c: Context<{ Bindings: AppEnv }>) => {
       return c.json({ error: 'Project ID is required' }, 400);
     }
 
-    const logEntries = Array.isArray(logContent)
-      ? logContent
+    const logEntries = Array.isArray(logContent) 
+      ? logContent 
       : logContent.split('\n').filter((line: string) => line.trim());
 
     const timestamp = new Date().toISOString();
@@ -1143,8 +1143,8 @@ app.get('/api/forecast/:projectId/risk-history', async (c: Context<{ Bindings: A
         if (rows?.length) {
           history = rows.map(row => ({
             score: row.score,
-            labels: typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels,
-            factors: typeof row.factors === 'string' ? JSON.parse(row.factors) : row.factors,
+            labels: typeof row.labels === 'string' ? JSON.parse(row.labels) : row.labels || [],
+            factors: typeof row.factors === 'string' ? JSON.parse(row.factors) : row.factors || {},
             timestamp: row.timestamp,
           }));
         }

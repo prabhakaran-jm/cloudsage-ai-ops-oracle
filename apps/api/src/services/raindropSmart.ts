@@ -107,6 +107,7 @@ export const smartBuckets = {
       'forecasts': 'FORECASTS',
       'users': 'USERS', // Will be available after redeploy with updated manifest
       'projects': 'PROJECTS', // Will be available after redeploy with updated manifest
+      'risk-history': 'RISK_HISTORY',
     };
     
     const envKey = bucketMap[bucket.toLowerCase()];
