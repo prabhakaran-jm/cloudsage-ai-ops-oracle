@@ -54,7 +54,11 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
-    return NextResponse.json({ sessionId: session.id });
+    // Return both sessionId (for backwards compatibility) and url (for new redirect method)
+    return NextResponse.json({ 
+      sessionId: session.id,
+      url: session.url, // Use this for direct redirect
+    });
   } catch (error: any) {
     console.error('Stripe checkout error:', error);
     return NextResponse.json(

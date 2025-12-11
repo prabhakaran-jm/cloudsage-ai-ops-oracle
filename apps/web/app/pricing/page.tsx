@@ -108,34 +108,40 @@ export default function PricingPage() {
         throw new Error(errorData.error || `Server error: ${response.status}`);
       }
 
-      const { sessionId, error } = await response.json();
+      const { sessionId, url, error } = await response.json();
 
       if (error) {
         throw new Error(error);
       }
 
+      // Use the checkout URL directly (new Stripe.js approach)
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+
+      // Fallback to old method if URL is not available (shouldn't happen, but for safety)
       if (!sessionId) {
-        throw new Error('No session ID returned from server');
+        throw new Error('No checkout session returned from server');
       }
 
-      if (!stripePromise) {
-        throw new Error('Stripe is not configured. Please set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in environment variables.');
+      // If we have sessionId but no URL, try the old redirectToCheckout method
+      // (This is a fallback for older Stripe.js versions)
+      if (stripePromise) {
+        const stripe = await stripePromise;
+        if (stripe && typeof (stripe as any).redirectToCheckout === 'function') {
+          const { error: redirectError } = await (stripe as any).redirectToCheckout({
+            sessionId,
+          });
+          if (redirectError) {
+            throw new Error(redirectError.message);
+          }
+          return;
+        }
       }
 
-      const stripe = await stripePromise;
-      if (!stripe) {
-        throw new Error('Stripe failed to load. Please check your internet connection and try again.');
-      }
-
-      // @ts-expect-error - TypeScript incorrectly resolves to server-side Stripe type
-      // The client-side Stripe from @stripe/stripe-js does have redirectToCheckout
-      const { error: redirectError } = await stripe.redirectToCheckout({
-        sessionId,
-      });
-
-      if (redirectError) {
-        throw new Error(redirectError.message);
-      }
+      // If all else fails, construct the checkout URL manually
+      throw new Error('Unable to redirect to checkout. Please try again.');
     } catch (err: any) {
       console.error('Checkout error:', err);
       const errorMessage = err?.message || 'An error occurred. Please try again.';
