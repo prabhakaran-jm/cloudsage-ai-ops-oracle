@@ -526,10 +526,14 @@ app.post('/api/auth/stripe-login', async (c: Context<{ Bindings: AppEnv }>) => {
       userId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       const now = new Date().toISOString();
       
+      // Use empty string for password_hash (table has NOT NULL constraint)
+      // Empty string indicates passwordless account (Stripe/WorkOS users)
+      const passwordHash = '';
+      
       const userData = {
         id: userId,
         email: normalizedEmail,
-        password_hash: null, // Stripe checkout users don't have passwords initially
+        password_hash: passwordHash,
         created_at: now,
         updated_at: now,
       };
@@ -538,7 +542,7 @@ app.post('/api/auth/stripe-login', async (c: Context<{ Bindings: AppEnv }>) => {
       try {
         await smartSQL.execute(
           'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-          [userId, normalizedEmail, null, now, now],
+          [userId, normalizedEmail, passwordHash, now, now],
           c.env
         );
         console.log('[Auth] Stripe checkout user created in SmartSQL:', normalizedEmail);
@@ -611,10 +615,14 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
       userId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       const now = new Date().toISOString();
       
+      // Use empty string for password_hash (table has NOT NULL constraint)
+      // Empty string indicates passwordless account (WorkOS/Stripe users)
+      const passwordHash = '';
+      
       const userData = {
         id: userId,
         email: normalizedEmail,
-        password_hash: null, // WorkOS users don't have passwords
+        password_hash: passwordHash,
         workos_user_id: workosUserId || null,
         created_at: now,
         updated_at: now,
@@ -624,7 +632,7 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
       try {
         await smartSQL.execute(
           'INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-          [userId, normalizedEmail, null, now, now],
+          [userId, normalizedEmail, passwordHash, now, now],
           c.env
         );
         console.log('[Auth] WorkOS user created in SmartSQL:', normalizedEmail);
@@ -1389,12 +1397,27 @@ async function initDatabase(db: any): Promise<boolean> {
         sqlQuery: `CREATE TABLE IF NOT EXISTS users (
           id TEXT PRIMARY KEY,
           email TEXT UNIQUE NOT NULL,
-          password_hash TEXT NOT NULL,
+          password_hash TEXT,
           created_at TEXT,
           updated_at TEXT
         )`,
         format: 'json'
       });
+      
+      // Migrate existing table: allow NULL for password_hash (for Stripe/WorkOS users)
+      try {
+        await db.executeQuery({
+          sqlQuery: `ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL`,
+          format: 'json'
+        });
+        console.log('[CloudSage] Updated users table to allow NULL password_hash');
+      } catch (alterErr: any) {
+        // Ignore if column is already nullable or ALTER not supported
+        // SQLite doesn't support ALTER COLUMN, so we'll handle this differently
+        if (!alterErr.message?.includes('syntax error') && !alterErr.message?.includes('no such column')) {
+          console.log('[CloudSage] Could not alter password_hash column (may already be nullable):', alterErr.message);
+        }
+      }
     } catch (e) {
       console.log('[CloudSage] Users table already exists or error:', e);
     }
