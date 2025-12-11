@@ -37,17 +37,39 @@ export default function WorkOSDebugPage() {
 
       // Check 3: Test sign-in endpoint
       try {
-        const response = await fetch('/api/auth/signin', { method: 'HEAD', redirect: 'manual' });
-        results.push({
-          name: 'Sign-in Endpoint',
-          status: response.status === 302 || response.status === 307 ? 'pass' : 'fail',
-          message: `Status: ${response.status} (should be 302/307 redirect)`
-        });
+        const response = await fetch('/api/auth/signin', { method: 'GET', redirect: 'manual' });
+        if (response.status === 302 || response.status === 307) {
+          results.push({
+            name: 'Sign-in Endpoint',
+            status: 'pass',
+            message: `Status: ${response.status} (redirecting to WorkOS)`
+          });
+        } else if (response.status === 500) {
+          // Try to get error details
+          let errorMessage = `Status: ${response.status} (Internal Server Error)`;
+          try {
+            const errorData = await response.json();
+            errorMessage += ` - ${errorData.message || errorData.error || 'Check Netlify function logs'}`;
+          } catch {
+            errorMessage += ' - Check that all WorkOS env vars are set in Netlify';
+          }
+          results.push({
+            name: 'Sign-in Endpoint',
+            status: 'fail',
+            message: errorMessage
+          });
+        } else {
+          results.push({
+            name: 'Sign-in Endpoint',
+            status: 'fail',
+            message: `Status: ${response.status} (expected 302/307 redirect)`
+          });
+        }
       } catch (error: any) {
         results.push({
           name: 'Sign-in Endpoint',
           status: 'fail',
-          message: `Error: ${error.message}`
+          message: `Network error: ${error.message}`
         });
       }
 
