@@ -61,6 +61,12 @@ export default async function middleware(request: NextRequest, event: NextFetchE
   
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/projects');
   const isAuthPage = request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register';
+  const isCheckoutSuccess = request.nextUrl.pathname.startsWith('/checkout/success');
+  
+  // Allow checkout success page (it will handle authentication)
+  if (isCheckoutSuccess) {
+    return NextResponse.next();
+  }
   
   // If accessing protected route without token, redirect to login
   if (isProtectedRoute && !token) {
@@ -82,6 +88,8 @@ export const config = {
     // Match auth pages
     '/login',
     '/register',
+    // Checkout success (needs to verify session)
+    '/checkout/:path*',
     // WorkOS callback
     '/api/auth/:path*',
   ],
