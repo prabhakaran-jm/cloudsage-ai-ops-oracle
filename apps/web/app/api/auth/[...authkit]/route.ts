@@ -124,10 +124,24 @@ async function handleCallback(req: NextRequest) {
     });
     
     // Exchange WorkOS user for backend JWT token
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://cloudsage-api.01kbv4q1d3d0twvhykd210v58w.lmapp.run/api';
+    // Use server-side env var or fallback to known API URL
+    // Note: API_BASE_URL should include /api (e.g., https://api.example.com/api)
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'https://cloudsage-api.01kbv4q1d3d0twvhykd210v58w.lmapp.run/api';
+    const workosLoginUrl = `${API_BASE_URL}/auth/workos-login`;
+    
+    console.log('[WorkOS Callback] Exchanging for JWT token:', {
+      apiUrl: API_BASE_URL,
+      workosLoginUrl: workosLoginUrl,
+      email: user.email,
+      workosUserId: user.id,
+    });
     
     try {
-      const tokenResponse = await fetch(`${API_BASE_URL}/auth/workos-login`, {
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const tokenResponse = await fetch(workosLoginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -136,15 +150,43 @@ async function handleCallback(req: NextRequest) {
           email: user.email,
           workosUserId: user.id,
         }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log('[WorkOS Callback] Token exchange response:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        ok: tokenResponse.ok,
       });
       
       if (!tokenResponse.ok) {
-        const error = await tokenResponse.json().catch(() => ({}));
-        console.error('[WorkOS Callback] Failed to get JWT token:', error);
-        return NextResponse.redirect(new URL('/auth/error?error=token_exchange_failed', req.url));
+        const errorText = await tokenResponse.text().catch(() => 'Unknown error');
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+        console.error('[WorkOS Callback] Failed to get JWT token:', {
+          status: tokenResponse.status,
+          statusText: tokenResponse.statusText,
+          error: errorData,
+          apiUrl: API_BASE_URL,
+        });
+        return NextResponse.redirect(new URL(`/auth/error?error=token_exchange_failed&details=${encodeURIComponent(errorData.error || 'Unknown error')}`, req.url));
       }
       
-      const { token } = await tokenResponse.json();
+      const tokenData = await tokenResponse.json();
+      const { token } = tokenData;
+      
+      if (!token) {
+        console.error('[WorkOS Callback] No token in response:', tokenData);
+        return NextResponse.redirect(new URL('/auth/error?error=no_token_in_response', req.url));
+      }
+      
+      console.log('[WorkOS Callback] JWT token received, redirecting to callback page');
       
       // Redirect to a page that will store the token in localStorage
       // We'll pass the token via query parameter (it's a JWT, safe to pass in URL temporarily)
@@ -165,8 +207,21 @@ async function handleCallback(req: NextRequest) {
       
       return redirectResponse;
     } catch (tokenError: any) {
-      console.error('[WorkOS Callback] Error exchanging for JWT:', tokenError);
-      return NextResponse.redirect(new URL('/auth/error?error=token_exchange_failed', req.url));
+      console.error('[WorkOS Callback] Error exchanging for JWT:', {
+        message: tokenError?.message,
+        name: tokenError?.name,
+        cause: tokenError?.cause,
+        apiUrl: workosLoginUrl,
+      });
+      
+      let errorMessage = 'token_exchange_failed';
+      if (tokenError?.name === 'AbortError') {
+        errorMessage = 'token_exchange_timeout';
+      } else if (tokenError?.message?.includes('fetch')) {
+        errorMessage = 'token_exchange_network_error';
+      }
+      
+      return NextResponse.redirect(new URL(`/auth/error?error=${errorMessage}`, req.url));
     }
   } catch (error: any) {
     console.error('[WorkOS Callback Error]:', error);
