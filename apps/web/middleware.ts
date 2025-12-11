@@ -13,6 +13,14 @@ const WORKOS_COOKIE_PASSWORD = process.env.WORKOS_COOKIE_PASSWORD;
 const WORKOS_ENABLED = WORKOS_CLIENT_ID && WORKOS_API_KEY && WORKOS_COOKIE_PASSWORD;
 
 export default async function middleware(request: NextRequest, event: NextFetchEvent) {
+  // CRITICAL: Skip WorkOS auth routes - they are handled by our custom route handler
+  // This prevents authkitMiddleware from interfering with our custom implementation
+  // that includes prompt=login and max_age=0 parameters
+  const isWorkOSAuthRoute = request.nextUrl.pathname.startsWith('/api/auth/');
+  if (isWorkOSAuthRoute) {
+    return NextResponse.next();
+  }
+
   // If WorkOS is configured, use AuthKit middleware for protected routes
   if (WORKOS_ENABLED) {
     // Configure WorkOS AuthKit
@@ -90,8 +98,6 @@ export const config = {
     '/register',
     // Checkout success (needs to verify session)
     '/checkout/:path*',
-    // WorkOS callback
-    '/api/auth/:path*',
   ],
 };
 
