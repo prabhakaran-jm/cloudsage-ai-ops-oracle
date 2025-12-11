@@ -6,7 +6,20 @@ import { loadStripe } from '@stripe/stripe-js';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
-const pricingPlans = [
+interface PricingPlan {
+  name: string;
+  price: string;
+  period: string;
+  description: string;
+  features: string[];
+  cta: string;
+  ctaLink: string;
+  popular: boolean;
+  priceId?: string;
+  trialDays?: number;
+}
+
+const pricingPlans: PricingPlan[] = [
   {
     name: 'Free',
     price: '$0',
@@ -41,6 +54,7 @@ const pricingPlans = [
     ctaLink: '#',
     popular: true,
     priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || '',
+    trialDays: 14, // 14-day free trial
   },
   {
     name: 'Enterprise',
@@ -65,8 +79,11 @@ const pricingPlans = [
 export default function PricingPage() {
   const [loading, setLoading] = useState<string | null>(null);
 
-  const handleCheckout = async (priceId: string) => {
-    if (!priceId) return;
+  const handleCheckout = async (priceId: string, trialDays?: number) => {
+    if (!priceId || priceId.trim() === '') {
+      alert('Stripe is not configured. Please contact support or try the Free plan.');
+      return;
+    }
     
     setLoading(priceId);
     try {
@@ -75,31 +92,42 @@ export default function PricingPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ priceId }),
+        body: JSON.stringify({ priceId, trialDays }),
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
 
       const { sessionId, error } = await response.json();
 
       if (error) {
-        alert(`Error: ${error}`);
-        return;
+        throw new Error(error);
+      }
+
+      if (!sessionId) {
+        throw new Error('No session ID returned from server');
       }
 
       const stripe = await stripePromise;
-      if (stripe) {
-        // @ts-expect-error - TypeScript incorrectly resolves to server-side Stripe type
-        // The client-side Stripe from @stripe/stripe-js does have redirectToCheckout
-        const { error: redirectError } = await stripe.redirectToCheckout({
-          sessionId,
-        });
-
-        if (redirectError) {
-          alert(`Error: ${redirectError.message}`);
-        }
+      if (!stripe) {
+        throw new Error('Stripe failed to load. Please check your internet connection and try again.');
       }
-    } catch (err) {
+
+      // @ts-expect-error - TypeScript incorrectly resolves to server-side Stripe type
+      // The client-side Stripe from @stripe/stripe-js does have redirectToCheckout
+      const { error: redirectError } = await stripe.redirectToCheckout({
+        sessionId,
+      });
+
+      if (redirectError) {
+        throw new Error(redirectError.message);
+      }
+    } catch (err: any) {
       console.error('Checkout error:', err);
-      alert('An error occurred. Please try again.');
+      const errorMessage = err?.message || 'An error occurred. Please try again.';
+      alert(`Checkout Error: ${errorMessage}\n\nIf this persists, please contact support.`);
     } finally {
       setLoading(null);
     }
@@ -180,7 +208,14 @@ export default function PricingPage() {
                           <span className="text-white/60 text-lg">/{plan.period}</span>
                         )}
                       </div>
-                      <p className="text-white/70 text-sm">{plan.description}</p>
+                      <p className="text-white/70 text-sm">
+                        {plan.description}
+                        {plan.trialDays && (
+                          <span className="block mt-1 text-[#5048e5] font-semibold">
+                            {plan.trialDays}-day free trial
+                          </span>
+                        )}
+                      </p>
                     </div>
 
                     <ul className="flex flex-col gap-3 flex-grow">
@@ -205,9 +240,9 @@ export default function PricingPage() {
                     </ul>
 
                     <div className="mt-auto pt-4">
-                      {plan.priceId ? (
+                      {plan.priceId && plan.priceId.trim() !== '' ? (
                         <button
-                          onClick={() => handleCheckout(plan.priceId)}
+                          onClick={() => handleCheckout(plan.priceId!, plan.trialDays)}
                           disabled={loading === plan.priceId}
                           className={`w-full rounded-lg h-12 px-6 font-bold text-base transition-all ${
                             plan.popular
@@ -217,6 +252,17 @@ export default function PricingPage() {
                         >
                           {loading === plan.priceId ? 'Processing...' : plan.cta}
                         </button>
+                      ) : plan.ctaLink.startsWith('mailto:') ? (
+                        <a
+                          href={plan.ctaLink}
+                          className={`block w-full text-center rounded-lg h-12 px-6 font-bold text-base leading-[48px] transition-all ${
+                            plan.popular
+                              ? 'bg-gradient-to-r from-[#5048e5] to-purple-600 text-white shadow-[0_0_20px_rgba(80,72,229,0.5)] hover:scale-105'
+                              : 'bg-white/10 text-white hover:bg-white/20'
+                          }`}
+                        >
+                          {plan.cta}
+                        </a>
                       ) : (
                         <Link
                           href={plan.ctaLink}

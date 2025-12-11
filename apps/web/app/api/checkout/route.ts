@@ -8,7 +8,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 
 export async function POST(req: NextRequest) {
   try {
-    const { priceId } = await req.json();
+    const { priceId, trialDays } = await req.json();
 
     if (!priceId) {
       return NextResponse.json(
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     if (!process.env.STRIPE_SECRET_KEY) {
       console.error('STRIPE_SECRET_KEY is not configured');
       return NextResponse.json(
-        { error: 'Stripe is not configured' },
+        { error: 'Stripe is not configured. Please contact support.' },
         { status: 500 }
       );
     }
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     const origin = req.headers.get('origin') || req.nextUrl.origin;
 
     // Create Stripe Checkout Session
-    const session = await stripe.checkout.sessions.create({
+    const sessionConfig: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: [
@@ -43,7 +43,16 @@ export async function POST(req: NextRequest) {
       metadata: {
         // You can add user ID here if available from auth
       },
-    });
+    };
+
+    // Add free trial if specified (note: this can also be set in Stripe product settings)
+    if (trialDays && trialDays > 0) {
+      sessionConfig.subscription_data = {
+        trial_period_days: trialDays,
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionConfig);
 
     return NextResponse.json({ sessionId: session.id });
   } catch (error: any) {
