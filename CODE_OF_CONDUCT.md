@@ -3,7 +3,7 @@
 This project follows the [Contributor Covenant](https://www.contributor-covenant.org/) Code of Conduct (v2.1).
 
 ## Our Pledge
-We pledge to make participation in our community a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socioeconomic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
+I pledge to make participation in our community a harassment-free experience for everyone, regardless of age, body size, visible or invisible disability, ethnicity, sex characteristics, gender identity and expression, level of experience, education, socioeconomic status, nationality, personal appearance, race, religion, or sexual identity and orientation.
 
 ## Our Standards
 - Use welcoming and inclusive language.
@@ -21,7 +21,7 @@ Project maintainers are responsible for clarifying and enforcing our standards o
 This Code of Conduct applies within all community spaces and applies when an individual officially represents the project in public spaces.
 
 ## Enforcement
-Report unacceptable behavior to the maintainers at [INSERT CONTACT EMAIL]. All complaints will be reviewed and investigated promptly and fairly.
+Report unacceptable behavior to the maintainers at prabhakaran.jm@gmail.com. All complaints will be reviewed and investigated promptly and fairly.
 
 ## Enforcement Guidelines
 Enforcement will follow the Contributor Covenant v2.1 guidelines (Correction, Warning, Temporary Ban, Permanent Ban) to address violations in a balanced and proportional manner.
