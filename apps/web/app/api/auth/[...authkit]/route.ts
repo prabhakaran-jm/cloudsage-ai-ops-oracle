@@ -58,19 +58,31 @@ async function handleSignIn(req: NextRequest) {
       hasCookiePassword: !!WORKOS_COOKIE_PASSWORD,
     });
     
-    // Force re-authentication by adding state parameter and clearing any existing session
-    // This ensures users are prompted for email/OTP even if they have a session cookie
-    const authorizationUrl = workos.userManagement.getAuthorizationUrl({
-      provider: 'authkit', // Using AuthKit, not SSO
-      redirectUri: WORKOS_REDIRECT_URI,
-      clientId: WORKOS_CLIENT_ID!,
-      // Add state to force re-authentication
-      state: `force_auth_${Date.now()}`,
+    // Clear any existing WorkOS session cookie to force re-authentication
+    // This ensures users are prompted for email/OTP instead of auto-logging in
+    const redirectResponse = NextResponse.redirect(
+      workos.userManagement.getAuthorizationUrl({
+        provider: 'authkit', // Using AuthKit, not SSO
+        redirectUri: WORKOS_REDIRECT_URI,
+        clientId: WORKOS_CLIENT_ID!,
+        // Add state to force re-authentication
+        state: `force_auth_${Date.now()}`,
+      })
+    );
+    
+    // Clear the WorkOS session cookie
+    redirectResponse.cookies.delete('wos-session');
+    redirectResponse.cookies.set('wos-session', '', {
+      expires: new Date(0),
+      path: '/',
+      httpOnly: true,
+      secure: true,
+      sameSite: 'lax',
     });
     
-    console.log('[WorkOS Sign-in] Authorization URL generated:', authorizationUrl.substring(0, 100) + '...');
+    console.log('[WorkOS Sign-in] Authorization URL generated, session cookie cleared');
     
-    return NextResponse.redirect(authorizationUrl);
+    return redirectResponse;
   } catch (error: any) {
     console.error('[WorkOS Sign-in Error]:', {
       message: error?.message,
