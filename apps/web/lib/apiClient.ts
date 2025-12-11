@@ -110,11 +110,17 @@ export const apiClient = {
     try {
       await request('/auth/logout', { method: 'POST' });
       // Also clear WorkOS session by calling signout endpoint
+      // Use a relative URL and handle redirects properly
       try {
-        await fetch('/api/auth/signout', { method: 'GET' });
+        await fetch('/api/auth/signout', { 
+          method: 'GET',
+          redirect: 'manual', // Don't follow redirects to avoid CORS issues
+          credentials: 'include', // Include cookies
+        });
       } catch (err) {
-        // Ignore errors - WorkOS may not be configured
-        console.warn('WorkOS signout failed:', err);
+        // Ignore errors - WorkOS may not be configured or CORS issues
+        // The cookie will be cleared on the next sign-in attempt anyway
+        console.warn('WorkOS signout failed (non-critical):', err);
       }
     } finally {
       removeToken();
