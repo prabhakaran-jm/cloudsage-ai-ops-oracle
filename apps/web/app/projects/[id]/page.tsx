@@ -83,8 +83,6 @@ export default function ProjectDetailPage() {
   const [apiStatus, setApiStatus] = useState<'ok' | 'degraded' | 'down'>('degraded');
   const [workerStatus, setWorkerStatus] = useState<'ok' | 'degraded' | 'down'>('degraded');
   const [vultrStatus, setVultrStatus] = useState<{ status: string; latency?: string | null; checkedAt?: string | null }>({ status: 'checking' });
-  const [remediating, setRemediating] = useState<number | null>(null);
-  const [remediationLog, setRemediationLog] = useState<string[]>([]);
 
   useEffect(() => {
     if (projectId) {
@@ -222,30 +220,6 @@ export default function ProjectDetailPage() {
   };
 
   // Simulate AI-powered auto-remediation
-  const handleRemediate = async (itemId: number, itemText: string) => {
-    setRemediating(itemId);
-    setRemediationLog([`🤖 CloudSage Agent activated for: "${itemText.substring(0, 50)}..."`]);
-    
-    // Simulate step-by-step remediation
-    const steps = [
-      '📊 Analyzing root cause...',
-      '🔍 Checking affected services...',
-      '⚡ Executing remediation action...',
-      '✅ Remediation complete! Monitoring for stability...'
-    ];
-    
-    for (let i = 0; i < steps.length; i++) {
-      await new Promise(r => setTimeout(r, 800));
-      setRemediationLog(prev => [...prev, steps[i]]);
-    }
-    
-    await new Promise(r => setTimeout(r, 500));
-    setRemediating(null);
-    setRemediationLog([]);
-    
-    // Refresh data after "remediation"
-    handleRefresh();
-  };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -527,26 +501,7 @@ export default function ProjectDetailPage() {
               <div className="md:col-span-2 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em]">Action Items</h2>
-                  <span className="text-xs px-2 py-1 bg-[#5048e5]/20 text-[#a5a0f5] rounded-full">
-                    🤖 AI Agent Ready
-                  </span>
                 </div>
-                
-                {/* Remediation Log */}
-                {remediationLog.length > 0 && (
-                  <div className="mb-4 p-3 bg-[#5048e5]/10 border border-[#5048e5]/30 rounded-lg">
-                    <div className="text-xs font-mono text-[#a5a0f5] space-y-1">
-                      {remediationLog.map((log, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          {i === remediationLog.length - 1 && remediating && (
-                            <span className="w-2 h-2 bg-[#5048e5] rounded-full animate-pulse" />
-                          )}
-                          <span>{log}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 <div className="space-y-4">
                   {generateActionItems(riskScore, riskHistory).map((item) => (
@@ -558,12 +513,6 @@ export default function ProjectDetailPage() {
                         item.priority === 'medium' ? 'border-amber-500' : 'border-green-500'
                       } bg-white/5 p-4`}
                     >
-                      <input
-                        checked={item.completed}
-                        className="h-5 w-5 rounded border-gray-600 bg-transparent text-[#5048e5] focus:ring-[#5048e5] focus:ring-offset-transparent"
-                        type="checkbox"
-                        readOnly
-                      />
                       <div className="flex-1">
                         <label className="text-white/90">{item.text}</label>
                         <span className={`ml-2 text-xs px-2 py-0.5 rounded ${
@@ -573,19 +522,6 @@ export default function ProjectDetailPage() {
                         }`}>{item.priority}</span>
                       </div>
                       <span className="text-sm text-[#9795c6] mr-2">{item.time}</span>
-                      {!item.completed && (item.priority === 'critical' || item.priority === 'high') && (
-                        <button
-                          onClick={() => handleRemediate(item.id, item.text)}
-                          disabled={remediating !== null}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                            remediating === item.id 
-                              ? 'bg-[#5048e5] text-white animate-pulse'
-                              : 'bg-[#5048e5]/20 text-[#a5a0f5] hover:bg-[#5048e5]/40 border border-[#5048e5]/30'
-                          } disabled:opacity-50`}
-                        >
-                          {remediating === item.id ? '⚡ Running...' : '🤖 Auto-Fix'}
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
