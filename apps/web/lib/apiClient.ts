@@ -76,8 +76,10 @@ export const apiClient = {
       service: string;
       component: string;
       latency?: string | null;
+      latencyMs?: number | null;
       region?: string;
       timestamp: string;
+      checkedAt?: string;
     }>('/vultr/status');
   },
 

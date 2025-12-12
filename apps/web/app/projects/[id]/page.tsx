@@ -73,6 +73,7 @@ export default function ProjectDetailPage() {
   const [forecast, setForecast] = useState<Forecast | null>(null);
   const [riskHistory, setRiskHistory] = useState<RiskHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [forecastLoading, setForecastLoading] = useState(false);
   const [forecastError, setForecastError] = useState('');
   const [error, setError] = useState('');
@@ -81,7 +82,7 @@ export default function ProjectDetailPage() {
   const [description, setDescription] = useState('');
   const [apiStatus, setApiStatus] = useState<'ok' | 'degraded' | 'down'>('degraded');
   const [workerStatus, setWorkerStatus] = useState<'ok' | 'degraded' | 'down'>('degraded');
-  const [vultrStatus, setVultrStatus] = useState<{ status: string; latency?: string | null }>({ status: 'checking' });
+  const [vultrStatus, setVultrStatus] = useState<{ status: string; latency?: string | null; checkedAt?: string | null }>({ status: 'checking' });
   const [remediating, setRemediating] = useState<number | null>(null);
   const [remediationLog, setRemediationLog] = useState<string[]>([]);
 
@@ -145,12 +146,15 @@ export default function ProjectDetailPage() {
 
   const loadRiskHistory = async () => {
     try {
+      setHistoryLoading(true);
       const data = await apiClient.getRiskHistory(projectId, 30);
       setRiskHistory(data.history);
       return data.history;
     } catch (err: any) {
       console.error('Failed to load risk history:', err);
       return [];
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -205,9 +209,9 @@ export default function ProjectDetailPage() {
     // Check Vultr infrastructure status
     try {
       const vultr = await apiClient.getVultrStatus();
-      setVultrStatus({ status: vultr.status, latency: vultr.latency });
+      setVultrStatus({ status: vultr.status, latency: vultr.latency, checkedAt: vultr.checkedAt || vultr.timestamp });
     } catch {
-      setVultrStatus({ status: 'offline', latency: null });
+      setVultrStatus({ status: 'offline', latency: null, checkedAt: null });
     }
   };
 
@@ -485,6 +489,11 @@ export default function ProjectDetailPage() {
                   <span>Last risk calc:</span>
                   <span className="font-semibold">{riskScoreTimestamp ? new Date(riskScoreTimestamp).toLocaleTimeString() : '—'}</span>
                 </div>
+                <div className="flex items-center gap-2 col-span-2 text-white/60">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                  <span>Last checked:</span>
+                  <span className="font-semibold">{vultrStatus.checkedAt ? new Date(vultrStatus.checkedAt).toLocaleTimeString() : '—'}</span>
+                </div>
               </div>
               <div className="text-[11px] text-white/50">
                 Powered by Vultr Cloud Compute • Handles 10K+ logs/s • Raindrop SmartInference for forecasts
@@ -586,7 +595,7 @@ export default function ProjectDetailPage() {
               <div className="md:col-span-1 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10 flex flex-col">
                 <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Historical Trends</h2>
                 <div className="flex-grow">
-                  <HistoryChart history={riskHistory} loading={loading} />
+                  <HistoryChart history={riskHistory} loading={historyLoading} />
                 </div>
               </div>
 

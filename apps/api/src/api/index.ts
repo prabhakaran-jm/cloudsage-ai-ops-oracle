@@ -13,6 +13,7 @@ import {
   ingestQuerySchema,
 } from '../schemas';
 import { logger } from '../utils/logger';
+import { friendlyError } from '../utils/errorMessages';
 
 // Import business logic from route files
 import * as authRoutes from '../routes/auth';
@@ -277,6 +278,46 @@ async function requireAuth(c: Context<{ Bindings: AppEnv }>): Promise<string | n
   return userId;
 }
 
+// Ensure the current user owns the project before proceeding
+async function ensureProjectAccess(
+  c: Context<{ Bindings: AppEnv }>,
+  userId: string,
+  projectId?: string
+): Promise<{ ok: true } | { ok: false; response: Response }> {
+  if (!projectId) {
+    return { ok: false, response: c.json({ error: 'Project ID is required' }, 400) };
+  }
+
+  // Primary: SmartSQL lookup
+  try {
+    const rows = await smartSQL.query(
+      'SELECT user_id FROM projects WHERE id = ? LIMIT 1',
+      [projectId],
+      c.env
+    );
+    if (rows?.length) {
+      if (rows[0].user_id !== userId) {
+        return { ok: false, response: c.json({ error: 'Forbidden' }, 403) };
+      }
+      return { ok: true };
+    }
+  } catch (err) {
+    console.warn('[AuthZ] SmartSQL project lookup failed, falling back to buckets:', err);
+  }
+
+  // Fallback: Bucket check
+  try {
+    const project = await smartBuckets.get('projects', `${userId}/${projectId}`, c.env);
+    if (project && (project.user_id === userId || project.userId === userId || !project.user_id)) {
+      return { ok: true };
+    }
+  } catch (err) {
+    console.warn('[AuthZ] Bucket project lookup failed:', err);
+  }
+
+  return { ok: false, response: c.json({ error: 'Project not found or access denied' }, 404) };
+}
+
 // Health check
 app.get('/health', (c: Context<{ Bindings: AppEnv }>) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -300,16 +341,21 @@ app.get('/api/vultr/status', async (c: Context<{ Bindings: AppEnv }>) => {
       service: 'Vultr Cloud Compute',
       component: 'Risk Scoring Engine',
       latency: isHealthy ? `${latency}ms` : null,
+      latencyMs: isHealthy ? latency : null,
       region: 'Vultr Cloud',
       timestamp: new Date().toISOString(),
+      checkedAt: new Date().toISOString(),
     });
   } catch (error: any) {
     return c.json({
       status: 'offline',
       service: 'Vultr Cloud Compute',
       component: 'Risk Scoring Engine',
+      latency: null,
+      latencyMs: null,
       error: error?.message || 'Connection failed',
       timestamp: new Date().toISOString(),
+      checkedAt: new Date().toISOString(),
     });
   }
 });
@@ -928,7 +974,7 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
     });
   } catch (error: any) {
     console.error('[Projects] Get project error:', error?.message || error);
-    return c.json({ error: 'Internal server error' }, 500);
+    return c.json({ error: friendlyError(error?.message), details: error?.message }, 500);
   }
 });
 
@@ -1022,7 +1068,7 @@ app.post('/api/projects', async (c: Context<{ Bindings: AppEnv }>) => {
     }, 201);
   } catch (error: any) {
     console.error('[Projects] Create project error:', error?.message || error);
-    return c.json({ error: 'Internal server error' }, 500);
+    return c.json({ error: friendlyError(error?.message), details: error?.message }, 500);
   }
 });
 
@@ -1207,6 +1253,9 @@ app.post('/api/ingest/:projectId', async (c: Context<{ Bindings: AppEnv }>) => {
       return c.json({ error: 'Project ID is required' }, 400);
     }
 
+    const access = await ensureProjectAccess(c, userId, projectId);
+    if (!access.ok) return access.response;
+
     const logEntries = Array.isArray(logContent) 
       ? logContent 
       : logContent.split('\n').filter((line: string) => line.trim());
@@ -1274,7 +1323,7 @@ app.post('/api/ingest/:projectId', async (c: Context<{ Bindings: AppEnv }>) => {
     }, 201);
   } catch (error: any) {
     console.error('Ingest error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    return c.json({ error: friendlyError(error?.message), details: error?.message }, 500);
   }
 });
 
@@ -1286,6 +1335,9 @@ app.get('/api/ingest/:projectId', async (c: Context<{ Bindings: AppEnv }>) => {
   if (!projectId) {
     return c.json({ error: 'Project ID is required' }, 400);
   }
+
+  const access = await ensureProjectAccess(c, userId, projectId);
+  if (!access.ok) return access.response;
 
   try {
     const projectLogs = await ingestRoutes.getLogs(projectId, c.env);
@@ -1451,6 +1503,9 @@ app.get('/api/forecast/:projectId/history', async (c: Context<{ Bindings: AppEnv
     return c.json({ error: 'Project ID is required' }, 400);
   }
 
+  const access = await ensureProjectAccess(c, userId, projectId);
+  if (!access.ok) return access.response;
+
   try {
     const { smartBuckets } = await import('../services/raindropSmart');
     const bucket = 'forecasts';
@@ -1482,6 +1537,9 @@ app.get('/api/forecast/:projectId/risk-history', async (c: Context<{ Bindings: A
   if (!projectId) {
     return c.json({ error: 'Project ID is required' }, 400);
   }
+
+  const access = await ensureProjectAccess(c, userId, projectId);
+  if (!access.ok) return access.response;
 
   try {
     const parsedQuery = historyQuerySchema.safeParse({
