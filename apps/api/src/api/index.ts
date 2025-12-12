@@ -14,6 +14,7 @@ import {
 } from '../schemas';
 import { logger } from '../utils/logger';
 import { friendlyError } from '../utils/errorMessages';
+import { rateLimit } from '../middleware/rateLimit';
 
 // Import business logic from route files
 import * as authRoutes from '../routes/auth';
@@ -1235,7 +1236,7 @@ app.delete('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) 
 });
 
 // === Ingest Routes ===
-app.post('/api/ingest/:projectId', async (c: Context<{ Bindings: AppEnv }>) => {
+app.post('/api/ingest/:projectId', rateLimit(100, 60_000), async (c: Context<{ Bindings: AppEnv }>) => {
   const userId = await requireAuth(c);
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
@@ -1365,7 +1366,7 @@ app.get('/api/ingest/:projectId', async (c: Context<{ Bindings: AppEnv }>) => {
 });
 
 // === Forecast Routes ===
-app.get('/api/forecast/:projectId', async (c: Context<{ Bindings: AppEnv }>) => {
+app.get('/api/forecast/:projectId', rateLimit(60, 60_000), async (c: Context<{ Bindings: AppEnv }>) => {
   const userId = await requireAuth(c);
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
