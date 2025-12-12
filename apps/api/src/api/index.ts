@@ -618,8 +618,16 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
 
     if (user) {
       // User exists, use their ID
-      userId = user.id || (user.value || user.data || user).id;
-      console.log('[Auth] Existing user found:', normalizedEmail, 'userId:', userId);
+      // Handle different response structures from SmartSQL vs SmartBuckets
+      const extractedUser = Array.isArray(user) ? user[0] : user;
+      userId = extractedUser?.id || extractedUser?.value?.id || extractedUser?.data?.id;
+      
+      if (!userId) {
+        console.error('[Auth] Failed to extract user ID from user object:', JSON.stringify(user));
+        throw new Error('Failed to extract user ID from existing user');
+      }
+      
+      console.log('[Auth] Existing user found:', normalizedEmail, 'userId:', userId, 'user object keys:', Object.keys(extractedUser || {}));
     } else {
       // Create new user (WorkOS JIT provisioning)
       userId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
