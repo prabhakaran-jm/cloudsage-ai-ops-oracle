@@ -412,23 +412,6 @@ export default function ProjectDetailPage() {
               </div>
             )}
 
-            {/* Quick actions */}
-            <div className="flex flex-wrap justify-end gap-3">
-              <button
-                onClick={() => loadForecast(true)}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs border border-white/20 transition-colors"
-              >
-                <span>↻</span>
-                Refresh forecast
-              </button>
-              <button
-                onClick={handleLoadSampleLogs}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#5048e5]/20 hover:bg-[#5048e5]/40 text-white text-xs border border-[#5048e5]/30 transition-colors"
-              >
-                <span>📋</span>
-                Load sample logs
-              </button>
-            </div>
             {/* Infrastructure Status Panel */}
             <div className="flex flex-wrap items-center gap-4 p-3 rounded-lg bg-white/5 border border-white/10">
               <div className="flex items-center gap-2">

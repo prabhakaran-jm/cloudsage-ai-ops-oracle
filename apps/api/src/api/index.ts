@@ -292,7 +292,7 @@ app.get('/api/vultr/status', async (c: Context<{ Bindings: AppEnv }>) => {
   try {
     const { checkVultrWorkerHealth } = await import('../services/vultrClient');
     const startTime = Date.now();
-    const isHealthy = await checkVultrWorkerHealth();
+    const isHealthy = await checkVultrWorkerHealth(c.env);
     const latency = Date.now() - startTime;
     
     return c.json({
@@ -899,7 +899,7 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
 
       const projectLogs = await getLogsForProject(projectId, c.env);
     try {
-      riskScore = await calculateRiskScoreFromVultr({ projectId, logs: projectLogs });
+      riskScore = await calculateRiskScoreFromVultr({ projectId, logs: projectLogs }, c.env);
     } catch (error) {
       console.warn('[Projects] Vultr worker unavailable, using local calculation');
       riskScore = getProjectRiskScore(projectLogs);
@@ -1252,7 +1252,7 @@ app.post('/api/ingest/:projectId', async (c: Context<{ Bindings: AppEnv }>) => {
         riskScore = await calculateRiskScoreFromVultr({
           projectId,
           logs: projectLogsForScoring,
-        });
+        }, c.env);
       } catch (error) {
         console.warn('Vultr worker unavailable, using local calculation:', error);
         riskScore = getProjectRiskScore(projectLogsForScoring);
