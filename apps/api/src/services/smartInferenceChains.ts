@@ -61,6 +61,34 @@ export async function runForecastInference(
     // Gather context data
     const context = await gatherForecastContext(projectId, env);
     chainSteps.push(`✅ Step 1 complete: Analyzed ${context.riskHistory.length} risk data points`);
+
+    // SmartBuckets search (shallow) for similar incidents to enrich context
+    let historicalContext: any[] = [];
+    try {
+      // Fallback “search”: list recent logs for project prefix and sample a few
+      const keys = await smartBuckets.list('logs', `${projectId}/`, env);
+      const sampleKeys = (keys || []).slice(-10);
+      const similarIncidents = await Promise.all(
+        sampleKeys.map((key: string) => smartBuckets.get('logs', key, env))
+      );
+
+      historicalContext = (similarIncidents || [])
+        .filter(Boolean)
+        .map((inc: any) => ({
+          date: inc.timestamp,
+          severity: inc.metadata?.riskScore,
+          resolution: inc.metadata?.resolution || 'unknown',
+        }));
+
+      if (historicalContext.length > 0) {
+        chainSteps.push(`📚 Found ${historicalContext.length} similar incidents via SmartBuckets search`);
+      } else {
+        chainSteps.push('ℹ️ No similar incidents found in SmartBuckets search');
+      }
+    } catch (error) {
+      console.warn('[Forecast] SmartBuckets search unavailable:', error);
+      chainSteps.push('⚠️ SmartBuckets search unavailable, skipping historical context');
+    }
     
     // Get user preferences and learned patterns if userId provided
     let userContext: any = null;
@@ -109,9 +137,24 @@ export async function runForecastInference(
       topRiskFactors: context.topRiskFactors,
       averageScore: context.averageScore,
       ...(userContext && { userPreferences: userContext }),
+      ...(historicalContext.length > 0 && { historicalContext }),
     };
-    
-    const result = await smartInference.run('forecast_generation', inferenceInputs);
+    let chainName = 'forecast_generation';
+    let chainInputs: any = { ...inferenceInputs };
+
+    if (context.averageScore >= 70) {
+      chainName = 'critical_incident_response';
+      chainInputs = { ...chainInputs, urgency: 'critical', requireImmediateAction: true };
+      chainSteps.push('🚨 High risk detected - using emergency response chain');
+    } else if (context.trend === 'increasing' && context.averageScore > 50) {
+      chainName = 'preventive_forecast';
+      chainInputs = { ...chainInputs, lookAheadDays: 7, focusOnPrevention: true };
+      chainSteps.push('📈 Upward trend - using preventive analysis chain');
+    } else {
+      chainSteps.push('✓ Normal operation - using standard forecast chain');
+    }
+
+    const result = await smartInference.run(chainName, chainInputs, env);
     
     if (result && result.forecastText) {
       chainSteps.push('✅ Step 3 complete: SmartInference generated forecast');

@@ -279,7 +279,7 @@ async function requireAuth(c: Context<{ Bindings: AppEnv }>): Promise<string | n
 }
 
 // Ensure the current user owns the project before proceeding
-async function ensureProjectAccess(
+export async function ensureProjectAccess(
   c: Context<{ Bindings: AppEnv }>,
   userId: string,
   projectId?: string
