@@ -6,7 +6,7 @@ import { apiClient, Project, RiskScore, Forecast, RiskHistoryEntry } from '@/lib
 import Link from 'next/link';
 import LogIngest from '@/components/LogIngest';
 import RiskPanel from '@/components/RiskPanel';
-import ForecastPanel from '@/components/ForecastPanelNew';
+import ForecastPanel from '@/components/ForecastPanel';
 import HistoryChart from '@/components/HistoryChart';
 import PlatformBadges from '@/components/PlatformBadges';
 
