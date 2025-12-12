@@ -3,6 +3,7 @@
 
 import { smartInference, smartSQL, smartBuckets, smartMemory } from './raindropSmart';
 import { getRiskHistory } from '../routes/ingest';
+import { getUserPreferences, getLearnedPatterns } from './userPreferences';
 
 export interface InferenceChainConfig {
   name: string;
@@ -36,25 +37,70 @@ export const INFERENCE_CHAINS: InferenceChainConfig[] = [
 ];
 
 /**
- * Run forecast generation inference chain
- * This is the main chain that generates daily forecasts
+ * Run forecast generation inference chain with multi-step processing
+ * Step 1: Analyze logs → extract patterns
+ * Step 2: Compare to SmartMemory baseline and user preferences
+ * Step 3: Generate prioritized actions based on learned patterns
  */
 export async function runForecastInference(
   projectId: string,
   date: string,
+  userId?: string,
   env?: any
 ): Promise<{
   forecastText: string;
   actions: string[];
   riskScore: number;
   confidence: number;
+  chainSteps?: string[]; // Log of chain execution steps
 } | null> {
+  const chainSteps: string[] = [];
+  
   try {
+    chainSteps.push('🔍 Step 1: Gathering context data...');
     // Gather context data
     const context = await gatherForecastContext(projectId, env);
+    chainSteps.push(`✅ Step 1 complete: Analyzed ${context.riskHistory.length} risk data points`);
     
-    // Try SmartInference
-    const result = await smartInference.run('forecast_generation', {
+    // Get user preferences and learned patterns if userId provided
+    let userContext: any = null;
+    if (userId) {
+      chainSteps.push('🧠 Step 2: Loading user preferences and learned patterns...');
+      try {
+        const [prefs, patterns] = await Promise.all([
+          getUserPreferences(userId, env),
+          getLearnedPatterns(userId, projectId, env),
+        ]);
+        
+        userContext = {
+          alertThreshold: prefs.alertThreshold,
+          ignoredPatterns: prefs.ignoredPatterns,
+          preferredActions: patterns.preferredActions,
+          completionRates: patterns.completionRates,
+        };
+        
+        // Filter out ignored risk patterns
+        const filteredFactors = context.topRiskFactors.filter(
+          factor => !prefs.ignoredPatterns.some(ignored => 
+            factor.toLowerCase().includes(ignored.toLowerCase())
+          )
+        );
+        
+        if (filteredFactors.length !== context.topRiskFactors.length) {
+          chainSteps.push(`🎯 Filtered ${context.topRiskFactors.length - filteredFactors.length} ignored patterns`);
+          context.topRiskFactors = filteredFactors;
+        }
+        
+        chainSteps.push(`✅ Step 2 complete: Loaded ${prefs.ignoredPatterns.length} ignored patterns, ${patterns.preferredActions.length} preferred action types`);
+      } catch (error) {
+        console.warn('Failed to load user context:', error);
+        chainSteps.push('⚠️ Step 2: User context unavailable, using defaults');
+      }
+    }
+    
+    chainSteps.push('🤖 Step 3: Running SmartInference chain...');
+    // Try SmartInference with enhanced context
+    const inferenceInputs = {
       projectId,
       date,
       riskHistory: context.riskHistory,
@@ -62,26 +108,78 @@ export async function runForecastInference(
       trend: context.trend,
       topRiskFactors: context.topRiskFactors,
       averageScore: context.averageScore,
-    });
+      ...(userContext && { userPreferences: userContext }),
+    };
+    
+    const result = await smartInference.run('forecast_generation', inferenceInputs);
     
     if (result && result.forecastText) {
+      chainSteps.push('✅ Step 3 complete: SmartInference generated forecast');
+      
+      // Personalize actions based on user preferences
+      let actions = result.actions || [];
+      if (userContext && userContext.preferredActions.length > 0) {
+        chainSteps.push('🎨 Personalizing actions based on learned preferences...');
+        actions = prioritizeActions(actions, userContext.preferredActions);
+        chainSteps.push('✅ Actions personalized');
+      }
+      
       return {
         forecastText: result.forecastText,
-        actions: result.actions || [],
+        actions,
         riskScore: result.riskScore || context.currentScore,
         confidence: result.confidence || 75,
+        chainSteps,
       };
     }
     
+    chainSteps.push('⚠️ SmartInference returned no result, using fallback');
     return null;
   } catch (error) {
-    console.warn('SmartInference not available:', error);
+    console.warn('SmartInference chain error:', error);
+    chainSteps.push(`❌ Chain error: ${error instanceof Error ? error.message : String(error)}`);
     return null;
   }
 }
 
 /**
+ * Prioritize actions based on user's preferred action types
+ */
+function prioritizeActions(actions: string[], preferredTypes: string[]): string[] {
+  if (preferredTypes.length === 0) return actions;
+  
+  const prioritized: string[] = [];
+  const remaining: string[] = [];
+  
+  actions.forEach(action => {
+    const actionType = extractActionType(action);
+    if (preferredTypes.includes(actionType)) {
+      prioritized.push(action);
+    } else {
+      remaining.push(action);
+    }
+  });
+  
+  // Return prioritized actions first, then remaining
+  return [...prioritized, ...remaining];
+}
+
+/**
+ * Extract action type from action text (same logic as userPreferences.ts)
+ */
+function extractActionType(actionText: string): string {
+  const lower = actionText.toLowerCase();
+  if (lower.includes('database') || lower.includes('db') || lower.includes('query')) return 'database';
+  if (lower.includes('scale') || lower.includes('resource') || lower.includes('capacity')) return 'scaling';
+  if (lower.includes('error') || lower.includes('log') || lower.includes('fix')) return 'error-handling';
+  if (lower.includes('monitor') || lower.includes('alert') || lower.includes('watch')) return 'monitoring';
+  if (lower.includes('memory') || lower.includes('cpu') || lower.includes('performance')) return 'performance';
+  return 'general';
+}
+
+/**
  * Gather all context needed for forecast generation
+ * Enhanced with SmartMemory baseline and pattern learning
  */
 async function gatherForecastContext(projectId: string, env?: any) {
   // Get risk history
@@ -90,9 +188,12 @@ async function gatherForecastContext(projectId: string, env?: any) {
   // Get project baseline from SmartMemory
   let projectContext = null;
   try {
-    projectContext = await smartMemory.get('project', `project:${projectId}:baseline`);
+    projectContext = await smartMemory.get('project', `project:${projectId}:baseline`, env);
+    if (projectContext) {
+      console.log(`[Forecast] Using SmartMemory baseline: avg=${projectContext.average}, lastUpdated=${projectContext.lastUpdated}`);
+    }
   } catch (error) {
-    // Use defaults
+    console.warn('[Forecast] SmartMemory baseline unavailable:', error);
   }
   
   // Analyze trends
@@ -100,7 +201,7 @@ async function gatherForecastContext(projectId: string, env?: any) {
   
   return {
     riskHistory: riskHistory.slice(0, 7), // Last 7 days
-    projectContext: projectContext || { baseline: 0 },
+    projectContext: projectContext || { baseline: 0, average: 0, lastUpdated: null },
     trend: analysis.trend,
     topRiskFactors: analysis.topRiskFactors,
     averageScore: analysis.averageScore,

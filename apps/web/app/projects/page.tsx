@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiClient, Project } from '@/lib/apiClient';
 import Link from 'next/link';
+import PlatformBadges from '@/components/PlatformBadges';
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -249,6 +250,9 @@ export default function ProjectsPage() {
                 </div>
               )}
             </main>
+            
+            {/* Platform Branding Footer */}
+            <PlatformBadges />
           </div>
         </div>
       </div>

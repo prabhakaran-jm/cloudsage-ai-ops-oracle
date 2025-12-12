@@ -6,8 +6,9 @@ import { apiClient, Project, RiskScore, Forecast, RiskHistoryEntry } from '@/lib
 import Link from 'next/link';
 import LogIngest from '@/components/LogIngest';
 import RiskPanel from '@/components/RiskPanel';
-import ForecastPanel from '@/components/ForecastPanel';
+import ForecastPanel from '@/components/ForecastPanelNew';
 import HistoryChart from '@/components/HistoryChart';
+import PlatformBadges from '@/components/PlatformBadges';
 
 // Generate dynamic action items based on risk analysis
 function generateActionItems(riskScore: RiskScore | null, riskHistory: RiskHistoryEntry[]) {
@@ -266,6 +267,43 @@ export default function ProjectDetailPage() {
     }
   };
 
+  // Sample logs for demo purposes
+  const handleLoadSampleLogs = async () => {
+    const SAMPLE_LOGS = `[2024-12-11 10:15:32] ERROR: Database connection timeout after 30s - primary-db.prod
+[2024-12-11 10:15:33] WARN: Retry attempt 1/3 for database connection
+[2024-12-11 10:15:35] ERROR: API endpoint /api/users returned 500 - request_id: abc123
+[2024-12-11 10:15:36] WARN: Memory usage at 85% on worker-node-3
+[2024-12-11 10:15:38] ERROR: Failed to process payment for order #12345 - Stripe timeout
+[2024-12-11 10:15:40] INFO: Auto-scaling triggered - adding 2 new instances
+[2024-12-11 10:15:42] WARN: Response time for /api/projects exceeded 2s threshold
+[2024-12-11 10:15:45] ERROR: Redis connection lost - Attempting reconnect
+[2024-12-11 10:15:47] WARN: CPU usage spike to 92% on api-server-1
+[2024-12-11 10:15:50] ERROR: Authentication service unavailable - fallback to cache`;
+
+    try {
+      setLoading(true);
+      const result = await apiClient.ingestLogs(projectId, SAMPLE_LOGS);
+      console.log('[ProjectDetail] Sample logs ingested:', result);
+      if (result.riskScore) {
+        await handleRefresh(result.riskScore);
+      } else {
+        await handleRefresh();
+      }
+      // Scroll to log ingestion section
+      setTimeout(() => {
+        const logSection = document.getElementById('log-ingestion');
+        if (logSection) {
+          logSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    } catch (err: any) {
+      console.error('Failed to load sample logs:', err);
+      setError(err.message || 'Failed to load sample logs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#121121] flex items-center justify-center">
@@ -373,6 +411,24 @@ export default function ProjectDetailPage() {
                 {error}
               </div>
             )}
+
+            {/* Quick actions */}
+            <div className="flex flex-wrap justify-end gap-3">
+              <button
+                onClick={() => loadForecast(true)}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs border border-white/20 transition-colors"
+              >
+                <span>↻</span>
+                Refresh forecast
+              </button>
+              <button
+                onClick={handleLoadSampleLogs}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[#5048e5]/20 hover:bg-[#5048e5]/40 text-white text-xs border border-[#5048e5]/30 transition-colors"
+              >
+                <span>📋</span>
+                Load sample logs
+              </button>
+            </div>
             {/* Infrastructure Status Panel */}
             <div className="flex flex-wrap items-center gap-4 p-3 rounded-lg bg-white/5 border border-white/10">
               <div className="flex items-center gap-2">
@@ -415,17 +471,64 @@ export default function ProjectDetailPage() {
               )}
             </div>
 
+            {/* Vultr Cloud Compute status widget */}
+            <div className="rounded-lg p-4 bg-[#007BFC]/5 border border-[#007BFC]/20 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-[#007BFC]" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#007BFC" strokeWidth="2" fill="none"/>
+                  </svg>
+                  <div>
+                    <div className="text-sm font-semibold text-white">Vultr Cloud Compute</div>
+                    <div className="text-xs text-white/60">Risk scoring engine</div>
+                  </div>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs ${
+                  vultrStatus.status === 'online' ? 'bg-green-500/20 text-green-200 border border-green-500/30' :
+                  vultrStatus.status === 'checking' ? 'bg-amber-500/20 text-amber-200 border border-amber-500/30' :
+                  'bg-red-500/20 text-red-200 border border-red-500/30'
+                }`}>
+                  {vultrStatus.status === 'online' ? 'Online' : vultrStatus.status === 'checking' ? 'Connecting' : 'Offline'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs text-white/80">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                  <span>Latency:</span>
+                  <span className="font-semibold">{vultrStatus.latency || '—'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                  <span>Last risk calc:</span>
+                  <span className="font-semibold">{riskScoreTimestamp ? new Date(riskScoreTimestamp).toLocaleTimeString() : '—'}</span>
+                </div>
+              </div>
+              <div className="text-[11px] text-white/50">
+                Powered by Vultr Cloud Compute • Handles 10K+ logs/s • Raindrop SmartInference for forecasts
+              </div>
+            </div>
+
             {/* Main Content Grid */}
             <main className="grid grid-cols-1 gap-8 md:grid-cols-3">
               {/* Risk Dashboard */}
               <div className="md:col-span-3 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10">
                 <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-6">Risk Dashboard</h2>
-                <RiskPanel riskScore={riskScore} loading={loading} updatedAt={riskScoreTimestamp} />
+                <RiskPanel 
+                  riskScore={riskScore} 
+                  loading={loading} 
+                  updatedAt={riskScoreTimestamp} 
+                  onLoadSampleLogs={handleLoadSampleLogs}
+                />
               </div>
 
               {/* AI Forecast */}
               <div className="md:col-span-3">
-                <ForecastPanel forecast={forecast} loading={forecastLoading} error={forecastError} />
+                <ForecastPanel 
+                  forecast={forecast} 
+                  loading={forecastLoading} 
+                  error={forecastError} 
+                  onRefresh={() => loadForecast(true)}
+                />
               </div>
 
               {/* Action Items */}
@@ -505,11 +608,14 @@ export default function ProjectDetailPage() {
               </div>
 
               {/* Log Ingestion */}
-              <div className="md:col-span-3 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10">
+              <div id="log-ingestion" className="md:col-span-3 rounded-lg p-6 bg-white/5 backdrop-blur-lg border border-white/10">
                 <h2 className="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] mb-4">Log Ingestion</h2>
                 <LogIngest projectId={projectId} onIngested={handleRefresh} />
               </div>
             </main>
+            
+            {/* Platform Branding Footer */}
+            <PlatformBadges />
           </div>
         </div>
       </div>

@@ -203,6 +203,7 @@ export interface Forecast {
   riskScore: number;
   confidence: number;
   generatedAt: string;
+  chainSteps?: string[]; // SmartInference chain execution steps
   aiReasoning?: {
     inputSignals: string[];
     analysisSteps: string[];

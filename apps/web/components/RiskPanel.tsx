@@ -7,9 +7,10 @@ interface RiskPanelProps {
   riskScore: RiskScore | null;
   loading?: boolean;
   updatedAt?: string | null;
+  onLoadSampleLogs?: () => void;
 }
 
-export default function RiskPanel({ riskScore, loading, updatedAt }: RiskPanelProps) {
+export default function RiskPanel({ riskScore, loading, updatedAt, onLoadSampleLogs }: RiskPanelProps) {
   useEffect(() => {
     console.log('[RiskPanel] Risk score prop changed:', riskScore);
   }, [riskScore]);
@@ -22,20 +23,56 @@ export default function RiskPanel({ riskScore, loading, updatedAt }: RiskPanelPr
 
   if (!riskScore) {
     return (
-      <div className="flex flex-col items-center justify-center py-8 text-center">
+      <div className="flex flex-col items-center justify-center py-12 text-center">
         <div className="w-20 h-20 mb-4 rounded-full bg-white/5 flex items-center justify-center">
           <svg className="w-10 h-10 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
         </div>
-        <h3 className="text-lg font-semibold text-white mb-2">No Risk Data Yet</h3>
-        <p className="text-white/50 text-sm max-w-sm mb-4">
-          Ingest your first logs to see AI-powered risk analysis, trends, and actionable recommendations.
+        <h3 className="text-xl font-semibold text-white mb-2">Upload Logs to See Your Risk Score</h3>
+        <p className="text-white/50 text-sm max-w-md mb-6">
+          CloudSage analyzes your logs using AI-powered risk scoring powered by Vultr Cloud Compute. 
+          Upload logs or try our sample data to get started.
         </p>
-        <div className="flex items-center gap-2 text-xs text-[#5048e5]">
+        {onLoadSampleLogs && (
+          <button
+            onClick={onLoadSampleLogs}
+            className="flex items-center gap-2 px-6 py-3 bg-[#5048e5] hover:bg-[#5048e5]/90 text-white rounded-lg font-semibold text-sm transition-colors mb-4"
+          >
+            <span>📋</span>
+            <span>Load Sample Logs</span>
+          </button>
+        )}
+        <div className="flex items-center gap-2 text-xs text-white/40">
           <span className="animate-pulse">●</span>
-          <span>Scroll down to paste logs or load sample data</span>
+          <span>Or scroll down to paste your own logs</span>
         </div>
+      </div>
+    );
+  }
+  
+  // Handle edge case: risk score is 0 (should show as "Healthy" but with clear messaging)
+  if (riskScore.score === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8 text-center">
+        <div className="w-20 h-20 mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+          <svg className="w-10 h-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h3 className="text-lg font-semibold text-white mb-2">System Healthy</h3>
+        <p className="text-white/50 text-sm max-w-sm mb-4">
+          Your logs show no significant risk indicators. Continue monitoring to maintain system health.
+        </p>
+        {onLoadSampleLogs && (
+          <button
+            onClick={onLoadSampleLogs}
+            className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm transition-colors"
+          >
+            <span>📋</span>
+            <span>Try Sample Data</span>
+          </button>
+        )}
       </div>
     );
   }

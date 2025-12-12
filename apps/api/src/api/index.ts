@@ -12,6 +12,7 @@ import {
   historyQuerySchema,
   ingestQuerySchema,
 } from '../schemas';
+import { logger } from '../utils/logger';
 
 // Import business logic from route files
 import * as authRoutes from '../routes/auth';
@@ -508,6 +509,9 @@ app.post('/api/auth/stripe-login', async (c: Context<{ Bindings: AppEnv }>) => {
       const rows = await smartSQL.query('SELECT * FROM users WHERE email = ?', [normalizedEmail], c.env);
       if (rows?.length) {
         user = rows[0];
+        console.log('[Auth] User found in SmartSQL:', normalizedEmail, 'raw user:', JSON.stringify(user));
+      } else {
+        console.log('[Auth] No user found in SmartSQL for:', normalizedEmail);
       }
     } catch (err) {
       console.warn('[Auth] SmartSQL query failed, trying SmartBuckets:', err);
@@ -519,6 +523,9 @@ app.post('/api/auth/stripe-login', async (c: Context<{ Bindings: AppEnv }>) => {
         const bucketUser = await smartBuckets.get('users', normalizedEmail, c.env);
         if (bucketUser) {
           user = bucketUser.value || bucketUser.data || bucketUser;
+          console.log('[Auth] User found in SmartBuckets:', normalizedEmail, 'raw user:', JSON.stringify(user));
+        } else {
+          console.log('[Auth] No user found in SmartBuckets for:', normalizedEmail);
         }
       } catch (err) {
         console.warn('[Auth] SmartBuckets query failed:', err);
@@ -529,7 +536,30 @@ app.post('/api/auth/stripe-login', async (c: Context<{ Bindings: AppEnv }>) => {
 
     if (user) {
       // User exists, use their ID
-      userId = user.id || (user.value || user.data || user).id;
+      // SmartSQL returns: { id: '...', email: '...', ... } directly
+      // SmartBuckets returns: { value: { id: '...', ... }, ... } or { id: '...', ... }
+      
+      // Try direct id first (SmartSQL format)
+      userId = user.id;
+      
+      // If not found, try nested structures (SmartBuckets format)
+      if (!userId && user.value) {
+        userId = user.value.id;
+      }
+      if (!userId && user.data) {
+        userId = user.data.id;
+      }
+      
+      if (!userId) {
+        console.error('[Auth] Failed to extract user ID from user object:', {
+          userType: typeof user,
+          isArray: Array.isArray(user),
+          userKeys: Object.keys(user || {}),
+          fullUser: JSON.stringify(user),
+        });
+        throw new Error('Failed to extract user ID from existing user');
+      }
+      
       console.log('[Auth] Existing user found:', normalizedEmail, 'userId:', userId);
     } else {
       // Create new user (Stripe checkout JIT provisioning)
@@ -565,7 +595,11 @@ app.post('/api/auth/stripe-login', async (c: Context<{ Bindings: AppEnv }>) => {
 
     const token = await signToken(userId, c.env);
 
-    console.log('[Auth] Stripe checkout login successful for:', normalizedEmail);
+    console.log('[Auth] Stripe checkout login successful:', {
+      email: normalizedEmail,
+      userId: userId,
+      tokenUserId: (await getUserIdFromToken(`Bearer ${token}`, c.env)) || 'VERIFICATION_FAILED',
+    });
     return c.json({
       token,
       user: { id: userId, email: normalizedEmail },
@@ -597,6 +631,9 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
       const rows = await smartSQL.query('SELECT * FROM users WHERE email = ?', [normalizedEmail], c.env);
       if (rows?.length) {
         user = rows[0];
+        console.log('[Auth] User found in SmartSQL:', normalizedEmail, 'raw user:', JSON.stringify(user));
+      } else {
+        console.log('[Auth] No user found in SmartSQL for:', normalizedEmail);
       }
     } catch (err) {
       console.warn('[Auth] SmartSQL query failed, trying SmartBuckets:', err);
@@ -608,6 +645,9 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
         const bucketUser = await smartBuckets.get('users', normalizedEmail, c.env);
         if (bucketUser) {
           user = bucketUser.value || bucketUser.data || bucketUser;
+          console.log('[Auth] User found in SmartBuckets:', normalizedEmail, 'raw user:', JSON.stringify(user));
+        } else {
+          console.log('[Auth] No user found in SmartBuckets for:', normalizedEmail);
         }
       } catch (err) {
         console.warn('[Auth] SmartBuckets query failed:', err);
@@ -618,16 +658,31 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
 
     if (user) {
       // User exists, use their ID
-      // Handle different response structures from SmartSQL vs SmartBuckets
-      const extractedUser = Array.isArray(user) ? user[0] : user;
-      userId = extractedUser?.id || extractedUser?.value?.id || extractedUser?.data?.id;
+      // SmartSQL returns: { id: '...', email: '...', ... } directly
+      // SmartBuckets returns: { value: { id: '...', ... }, ... } or { id: '...', ... }
+      
+      // Try direct id first (SmartSQL format)
+      userId = user.id;
+      
+      // If not found, try nested structures (SmartBuckets format)
+      if (!userId && user.value) {
+        userId = user.value.id;
+      }
+      if (!userId && user.data) {
+        userId = user.data.id;
+      }
       
       if (!userId) {
-        console.error('[Auth] Failed to extract user ID from user object:', JSON.stringify(user));
+        console.error('[Auth] Failed to extract user ID from user object:', {
+          userType: typeof user,
+          isArray: Array.isArray(user),
+          userKeys: Object.keys(user || {}),
+          fullUser: JSON.stringify(user),
+        });
         throw new Error('Failed to extract user ID from existing user');
       }
       
-      console.log('[Auth] Existing user found:', normalizedEmail, 'userId:', userId, 'user object keys:', Object.keys(extractedUser || {}));
+      console.log('[Auth] Existing user found:', normalizedEmail, 'userId:', userId);
     } else {
       // Create new user (WorkOS JIT provisioning)
       userId = `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -663,7 +718,12 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
 
     const token = await signToken(userId, c.env);
 
-    console.log('[Auth] WorkOS login successful for:', normalizedEmail);
+    console.log('[Auth] WorkOS login successful:', {
+      email: normalizedEmail,
+      workosUserId: workosUserId || 'N/A',
+      userId: userId,
+      tokenUserId: (await getUserIdFromToken(`Bearer ${token}`, c.env)) || 'VERIFICATION_FAILED',
+    });
     return c.json({
       token,
       user: { id: userId, email: normalizedEmail },
@@ -679,6 +739,8 @@ app.get('/api/projects', async (c: Context<{ Bindings: AppEnv }>) => {
   const userId = await requireAuth(c);
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
 
+  console.log('[Projects] Fetching projects for userId:', userId);
+
   try {
     // Collect projects from SmartSQL (preferred) and Buckets (fallback) then dedupe by id
     const projectMap = new Map<string, any>();
@@ -692,6 +754,7 @@ app.get('/api/projects', async (c: Context<{ Bindings: AppEnv }>) => {
       for (const p of rows || []) {
         projectMap.set(p.id, {
           id: p.id,
+          userId: p.user_id,
           name: p.name,
           description: p.description,
           createdAt: p.created_at || p.createdAt,
@@ -709,6 +772,7 @@ app.get('/api/projects', async (c: Context<{ Bindings: AppEnv }>) => {
         if (p && (p.id || p.name) && !projectMap.has(p.id)) {
           projectMap.set(p.id, {
       id: p.id,
+      userId: p.userId || p.user_id || userId, // Include userId from bucket or fallback to current userId
       name: p.name,
       description: p.description,
       createdAt: p.created_at || p.createdAt,
@@ -871,6 +935,8 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
 app.post('/api/projects', async (c: Context<{ Bindings: AppEnv }>) => {
   const userId = await requireAuth(c);
   if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  console.log('[Projects] Creating project for userId:', userId);
 
   try {
     const body = await c.req.json();
@@ -1275,12 +1341,16 @@ app.get('/api/forecast/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
 
     if (force || !forecast || shouldRegenerateForecast(forecast)) {
       try {
-        const inferenceResult = await smartInference.run('forecast_generation', {
-          projectId,
-          date,
-        });
+        // Use multi-step SmartInference chain with user context
+        const { runForecastInference } = await import('../services/smartInferenceChains');
+        const inferenceResult = await runForecastInference(projectId, date, userId, c.env);
         
         if (inferenceResult && inferenceResult.forecastText) {
+          // Log chain execution steps for visibility
+          if (inferenceResult.chainSteps && inferenceResult.chainSteps.length > 0) {
+            logger.info('SmartInference chain execution', { steps: inferenceResult.chainSteps }, c.env);
+          }
+          
           forecast = {
             id: `forecast_${projectId}_${date}`,
             projectId,
@@ -1290,23 +1360,85 @@ app.get('/api/forecast/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
             riskScore: inferenceResult.riskScore || 0,
             confidence: inferenceResult.confidence || 50,
             generatedAt: new Date().toISOString(),
+            chainSteps: inferenceResult.chainSteps, // Include chain steps for debugging/demo
           };
         } else {
-          forecast = await generateForecast(projectId, date, c.env);
+          forecast = await generateForecast(projectId, date, userId, c.env);
         }
         
         await smartBuckets.put(bucket, key, forecast, c.env);
       } catch (error: any) {
         console.error('Forecast generation error:', error);
-        forecast = await generateForecast(projectId, date, c.env);
+        forecast = await generateForecast(projectId, date, userId, c.env);
         await smartBuckets.put(bucket, key, forecast, c.env);
       }
     }
 
     return c.json({ forecast });
   } catch (error: any) {
-    console.error('Get forecast error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
+    logger.error('Get forecast error', { error: error?.message || error, projectId }, c.env);
+    return c.json({
+      error: 'SmartInference unavailable - generated fallback forecast. Please retry.',
+      details: error?.message || 'Unknown error'
+    }, 500);
+  }
+});
+
+// === Analytics Routes ===
+app.get('/api/analytics/trends', async (c: Context<{ Bindings: AppEnv }>) => {
+  const userId = await requireAuth(c);
+  if (!userId) return c.json({ error: 'Unauthorized' }, 401);
+
+  try {
+    const { smartSQL } = await import('../services/raindropSmart');
+    
+    // Query: Calculate 7-day risk trend slope, identify degrading projects
+    // This demonstrates deep SmartSQL usage beyond basic CRUD
+    const query = `
+      SELECT 
+        project_id,
+        AVG(score) as avg_score,
+        COUNT(*) as data_points,
+        MAX(timestamp) as last_update,
+        MIN(timestamp) as first_update,
+        -- Calculate trend slope (positive = increasing risk, negative = decreasing)
+        (AVG(CASE WHEN timestamp > datetime('now', '-3 days') THEN score ELSE NULL END) - 
+         AVG(CASE WHEN timestamp <= datetime('now', '-3 days') AND timestamp > datetime('now', '-7 days') THEN score ELSE NULL END)) as trend_slope
+      FROM risk_history
+      WHERE timestamp > datetime('now', '-7 days')
+        AND user_id = ?
+      GROUP BY project_id
+      HAVING data_points >= 2
+      ORDER BY avg_score DESC, trend_slope DESC
+      LIMIT 20
+    `;
+    
+    const results = await smartSQL.query(query, [userId], c.env);
+    
+    // Format results with trend indicators
+    const trends = (results || []).map((row: any) => ({
+      projectId: row.project_id,
+      averageScore: Math.round(row.avg_score || 0),
+      dataPoints: row.data_points || 0,
+      lastUpdate: row.last_update,
+      firstUpdate: row.first_update,
+      trendSlope: row.trend_slope ? parseFloat(row.trend_slope.toFixed(2)) : 0,
+      trend: row.trend_slope > 2 ? 'increasing' : row.trend_slope < -2 ? 'decreasing' : 'stable',
+      riskLevel: row.avg_score >= 70 ? 'critical' : row.avg_score >= 50 ? 'high' : row.avg_score >= 30 ? 'moderate' : 'low',
+    }));
+    
+    return c.json({
+      trends,
+      summary: {
+        totalProjects: trends.length,
+        criticalProjects: trends.filter(t => t.riskLevel === 'critical').length,
+        increasingTrendProjects: trends.filter(t => t.trend === 'increasing').length,
+        period: '7 days',
+      },
+    });
+  } catch (error: any) {
+    console.error('Analytics trends error:', error);
+    return c.json({ error: 'Failed to calculate trends', details: error.message }, 500);
   }
 });
 

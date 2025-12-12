@@ -1,9 +1,25 @@
 // Vultr API client for risk scoring worker communication
 
-const VULTR_WORKER_URL = process.env.VULTR_WORKER_URL || 'http://192.248.166.170:8080';
-const VULTR_API_KEY = process.env.VULTR_API_KEY || '90ccd4ced7150948cee67d6388452f8b732037b359874c9d41ee01413d065178';
 const VULTR_TIMEOUT_MS = parseInt(process.env.VULTR_TIMEOUT_MS || '8000', 10);
 const VULTR_MAX_RETRIES = parseInt(process.env.VULTR_MAX_RETRIES || '2', 10);
+
+/**
+ * Get Vultr configuration from environment variables
+ * Validates that required variables are set
+ */
+function getVultrConfig(): { workerUrl: string; apiKey: string } {
+  const workerUrl = process.env.VULTR_WORKER_URL;
+  const apiKey = process.env.VULTR_API_KEY;
+  
+  if (!workerUrl) {
+    throw new Error('VULTR_WORKER_URL environment variable is required. Please set it in your environment or Raindrop manifest.');
+  }
+  if (!apiKey) {
+    throw new Error('VULTR_API_KEY environment variable is required. Please set it in your environment or Raindrop manifest.');
+  }
+  
+  return { workerUrl, apiKey };
+}
 
 export interface LogEntry {
   content: string;
@@ -40,13 +56,15 @@ export interface ScoreRequest {
 export async function calculateRiskScoreFromVultr(
   request: ScoreRequest
 ): Promise<RiskScoreResult> {
+  const { workerUrl, apiKey } = getVultrConfig();
+  
   const attempt = async (signal: AbortSignal) => {
-    const response = await fetch(`${VULTR_WORKER_URL}/score`, {
+    const response = await fetch(`${workerUrl}/score`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${VULTR_API_KEY}`,
-        'X-API-Key': VULTR_API_KEY,
+        'Authorization': `Bearer ${apiKey}`,
+        'X-API-Key': apiKey,
       },
       body: JSON.stringify(request),
       signal,
@@ -89,7 +107,8 @@ export async function calculateRiskScoreFromVultr(
  */
 export async function checkVultrWorkerHealth(): Promise<boolean> {
   try {
-    const response = await fetch(`${VULTR_WORKER_URL}/health`, {
+    const { workerUrl } = getVultrConfig();
+    const response = await fetch(`${workerUrl}/health`, {
       method: 'GET',
       timeout: 5000,
     } as any);

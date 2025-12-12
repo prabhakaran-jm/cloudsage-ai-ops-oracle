@@ -12,10 +12,11 @@ interface ForecastPanelProps {
 export default function ForecastPanel({ forecast, loading, error, onRefresh }: ForecastPanelProps) {
   // Debug: Always log props
   if (typeof window !== 'undefined') {
-    console.log('[ForecastPanel] Props:', { 
+    console.log('[ForecastPanelNew] Props:', { 
       hasForecast: !!forecast, 
       loading, 
-      hasOnRefresh: !!onRefresh 
+      hasOnRefresh: !!onRefresh,
+      timestamp: new Date().toISOString()
     });
   }
   
@@ -24,16 +25,18 @@ export default function ForecastPanel({ forecast, loading, error, onRefresh }: F
     window.location.reload();
   });
 
-  // Common container classes
-  const containerClasses = "md:col-span-3 rounded-lg p-6 bg-gradient-to-br from-[#5048e5]/80 to-purple-600/80 backdrop-blur-lg border border-white/10";
+  // Common container classes - CHANGED TO PINK FOR VISIBILITY
+  const containerClasses = "md:col-span-3 rounded-lg p-6 bg-pink-900/90 backdrop-blur-lg border-4 border-lime-400 shadow-2xl";
 
   return (
     <div className={containerClasses}>
-      {/* FORCE VISIBLE TEST - Now placed at the top level so it is ALWAYS visible */}
-      <div className="mb-4 p-4 bg-red-500 text-white font-bold text-lg border-4 border-yellow-400">
-        ⚠️ TEST: If you see this, ForecastPanel is rendering. Refresh button should be below.
+      {/* FORCE VISIBLE TEST */}
+      <div className="mb-4 p-4 bg-red-500 text-white font-bold text-lg border-4 border-yellow-400 animate-pulse">
+        ⚠️ FORECAST PANEL V2 (PINK MODE)
         <br/>
-        <span className="text-sm font-normal opacity-90">State: {loading ? 'Loading' : !forecast ? 'No Forecast' : 'Forecast Loaded'}</span>
+        <span className="text-sm font-normal">If you see this, the component is definitely working.</span>
+        <br/>
+        <span className="text-sm font-normal">State: {loading ? 'Loading' : !forecast ? 'No Forecast' : 'Forecast Loaded'}</span>
       </div>
 
       <div className="flex items-center justify-between gap-4 mb-4">

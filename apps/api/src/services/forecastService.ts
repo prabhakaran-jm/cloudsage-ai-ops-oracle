@@ -36,10 +36,11 @@ export interface ForecastContext {
 export async function generateForecast(
   projectId: string,
   date: string = new Date().toISOString().split('T')[0],
+  userId?: string,
   env?: any
 ): Promise<Forecast> {
   // Try SmartInference first (pass env so SmartSQL/SmartMemory use native bindings)
-  const inferenceResult = await runForecastInference(projectId, date, env);
+  const inferenceResult = await runForecastInference(projectId, date, userId, env);
   
   if (inferenceResult) {
     // SmartInference succeeded
