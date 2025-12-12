@@ -50,7 +50,7 @@ export async function getLogs(projectId: string, env?: any, limit?: number): Pro
   
   if (keys.length > 0) {
     // Retrieve from SmartBuckets - get most recent logs
-    const logEntries = [];
+    const logEntries: any[] = [];
     const keysToFetch = keys.slice(-maxLogsForScoring); // Get most recent logs
     console.log(`[getLogs] Fetching ${keysToFetch.length} log entries from SmartBuckets...`);
     
@@ -71,7 +71,7 @@ export async function getLogs(projectId: string, env?: any, limit?: number): Pro
     }
     
     console.log(`[getLogs] Retrieved ${logEntries.length} logs from SmartBuckets (from ${keys.length} total keys)`);
-    return logEntries.sort((a, b) => 
+    return logEntries.sort((a: any, b: any) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
   }
