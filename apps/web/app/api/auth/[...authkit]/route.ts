@@ -172,11 +172,6 @@ async function handleCallback(req: NextRequest) {
       },
     });
     
-      email: user.email,
-      userId: user.id,
-      hasSealedSession: !!sealedSession,
-    });
-    
     // CRITICAL: Revoke all existing sessions for this user to prevent auto-login issues
     // This ensures that when the user logs out and tries to log in again, they'll be prompted for credentials
     try {
