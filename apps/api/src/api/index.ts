@@ -308,14 +308,31 @@ export async function ensureProjectAccess(
 
   // Fallback: Bucket check
   try {
-    const project = await smartBuckets.get('projects', `${userId}/${projectId}`, c.env);
+    // Try direct lookup first
+    let project = await smartBuckets.get('projects', `${userId}/${projectId}`, c.env);
+    
+    // If not found, try listing and searching (in case key format differs)
+    if (!project) {
+      console.log(`[AuthZ] Direct lookup failed for ${userId}/${projectId}, trying list search...`);
+      const keys = await smartBuckets.list('projects', `${userId}/`, c.env);
+      for (const key of keys || []) {
+        const p = await smartBuckets.get('projects', key, c.env);
+        if (p && (p.id === projectId || key.includes(projectId))) {
+          project = p;
+          break;
+        }
+      }
+    }
+    
     if (project && (project.user_id === userId || project.userId === userId || !project.user_id)) {
+      console.log(`[AuthZ] Project access granted via bucket lookup for ${projectId}`);
       return { ok: true };
     }
   } catch (err) {
     console.warn('[AuthZ] Bucket project lookup failed:', err);
   }
 
+  console.warn(`[AuthZ] Project access denied: projectId=${projectId}, userId=${userId}`);
   return { ok: false, response: c.json({ error: 'Project not found or access denied' }, 404) };
 }
 
@@ -1549,7 +1566,10 @@ app.get('/api/forecast/:projectId/risk-history', async (c: Context<{ Bindings: A
   }
 
   const access = await ensureProjectAccess(c, userId, projectId);
-  if (!access.ok) return access.response;
+  if (!access.ok) {
+    console.warn(`[RiskHistory] Access denied for project ${projectId} by user ${userId}`);
+    return access.response;
+  }
 
   try {
     const parsedQuery = historyQuerySchema.safeParse({
@@ -1560,7 +1580,9 @@ app.get('/api/forecast/:projectId/risk-history', async (c: Context<{ Bindings: A
     }
     const { limit = 30 } = parsedQuery.data;
     const { getRiskHistory } = await import('../routes/ingest');
+    console.log(`[RiskHistory] Fetching history for project ${projectId}, limit: ${limit}`);
     let history = await getRiskHistory(projectId, limit, c.env);
+    console.log(`[RiskHistory] Retrieved ${history?.length || 0} history entries`);
 
     // If still empty, try to include the latest cached risk score
     if (!history || history.length === 0) {
