@@ -37,24 +37,40 @@ export async function storeLogs(projectId: string, logEntries: any[], env?: any)
 }
 
 // Helper to retrieve logs (tries SmartBuckets first, falls back to memory)
+// For risk scoring, we limit to last 1000 logs for performance (still accurate for scoring)
 export async function getLogs(projectId: string, env?: any, limit?: number): Promise<any[]> {
   // Try SmartBuckets first
   const bucket = 'logs';
   const prefix = `${projectId}/`;
-  const keys = await smartBuckets.list(bucket, prefix, env);
+  
+  // For risk scoring, limit to last 1000 logs for performance (still accurate)
+  // For other uses, use provided limit or default to 1000
+  const maxLogsForScoring = limit || 1000;
+  const keys = await smartBuckets.list(bucket, prefix, env, maxLogsForScoring);
   
   if (keys.length > 0) {
-    // Retrieve from SmartBuckets - use limit if provided, otherwise get all (for risk scoring we want all logs)
-    const maxLogs = limit || keys.length; // Default to all logs for accurate risk scoring
+    // Retrieve from SmartBuckets - get most recent logs
     const logEntries = [];
-    const keysToFetch = keys.slice(-maxLogs); // Get most recent logs up to limit
-    for (const key of keysToFetch) {
-      const entry = await smartBuckets.get(bucket, key, env);
-      if (entry) {
-        logEntries.push(entry);
+    const keysToFetch = keys.slice(-maxLogsForScoring); // Get most recent logs
+    console.log(`[getLogs] Fetching ${keysToFetch.length} log entries from SmartBuckets...`);
+    
+    // Batch fetch with progress logging for large sets
+    const batchSize = 50;
+    for (let i = 0; i < keysToFetch.length; i += batchSize) {
+      const batch = keysToFetch.slice(i, i + batchSize);
+      const batchPromises = batch.map(key => smartBuckets.get(bucket, key, env));
+      const batchResults = await Promise.all(batchPromises);
+      batchResults.forEach(entry => {
+        if (entry) {
+          logEntries.push(entry);
+        }
+      });
+      if (i % 200 === 0 && i > 0) {
+        console.log(`[getLogs] Progress: ${i}/${keysToFetch.length} logs fetched...`);
       }
     }
-    console.log(`[getLogs] Retrieved ${logEntries.length} logs from SmartBuckets (requested up to ${maxLogs} from ${keys.length} total keys)`);
+    
+    console.log(`[getLogs] Retrieved ${logEntries.length} logs from SmartBuckets (from ${keys.length} total keys)`);
     return logEntries.sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );

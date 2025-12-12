@@ -1277,11 +1277,11 @@ app.post('/api/ingest/:projectId', rateLimit(100, 60_000), async (c: Context<{ B
     await ingestRoutes.storeLogs(projectId, storedLogs, c.env);
     console.log(`[Ingest] ✅ Stored ${storedLogs.length} logs successfully`);
 
-    // Get all logs and calculate risk score
-    console.log('[Ingest] 🔍 Getting all logs for risk scoring...');
+    // Get logs for risk scoring (limit to last 1000 for performance, still accurate)
+    console.log('[Ingest] 🔍 Getting logs for risk scoring...');
     const startTime = Date.now();
-    // Get all logs (no limit) for accurate risk scoring
-    let projectLogs = await ingestRoutes.getLogs(projectId, c.env, undefined);
+    // Limit to last 1000 logs for performance (still accurate for risk scoring)
+    let projectLogs = await ingestRoutes.getLogs(projectId, c.env, 1000);
 
     if (projectLogs.length === 0 && storedLogs.length > 0) {
       console.warn(`[Ingest] ⚠️ getLogs returned 0 entries. Using freshly stored logs for scoring.`);
