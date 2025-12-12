@@ -1279,7 +1279,9 @@ app.post('/api/ingest/:projectId', rateLimit(100, 60_000), async (c: Context<{ B
 
     // Get all logs and calculate risk score
     console.log('[Ingest] 🔍 Getting all logs for risk scoring...');
-    let projectLogs = await ingestRoutes.getLogs(projectId, c.env);
+    const startTime = Date.now();
+    // Get all logs (no limit) for accurate risk scoring
+    let projectLogs = await ingestRoutes.getLogs(projectId, c.env, undefined);
 
     if (projectLogs.length === 0 && storedLogs.length > 0) {
       console.warn(`[Ingest] ⚠️ getLogs returned 0 entries. Using freshly stored logs for scoring.`);
@@ -1298,15 +1300,22 @@ app.post('/api/ingest/:projectId', rateLimit(100, 60_000), async (c: Context<{ B
       const { calculateRiskScoreFromVultr } = await import('../services/vultrClient');
       const { getProjectRiskScore } = await import('../services/riskLogic');
       
+      const riskScoreStartTime = Date.now();
       try {
         riskScore = await calculateRiskScoreFromVultr({
           projectId,
           logs: projectLogsForScoring,
         }, c.env);
+        const riskScoreDuration = Date.now() - riskScoreStartTime;
+        console.log(`[Ingest] ⚡ Vultr risk scoring completed in ${riskScoreDuration}ms`);
       } catch (error) {
         console.warn('Vultr worker unavailable, using local calculation:', error);
         riskScore = getProjectRiskScore(projectLogsForScoring);
+        const riskScoreDuration = Date.now() - riskScoreStartTime;
+        console.log(`[Ingest] ⚡ Local risk scoring completed in ${riskScoreDuration}ms`);
       }
+      const totalDuration = Date.now() - startTime;
+      console.log(`[Ingest] ⏱️ Total ingestion + risk scoring time: ${totalDuration}ms`);
       
       console.log('[Ingest] 💾 Storing risk score...');
       await ingestRoutes.storeRiskScore(projectId, riskScore, c.env);

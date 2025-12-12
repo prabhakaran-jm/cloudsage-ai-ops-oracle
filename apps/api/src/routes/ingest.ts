@@ -37,28 +37,33 @@ export async function storeLogs(projectId: string, logEntries: any[], env?: any)
 }
 
 // Helper to retrieve logs (tries SmartBuckets first, falls back to memory)
-export async function getLogs(projectId: string, env?: any): Promise<any[]> {
+export async function getLogs(projectId: string, env?: any, limit?: number): Promise<any[]> {
   // Try SmartBuckets first
   const bucket = 'logs';
   const prefix = `${projectId}/`;
   const keys = await smartBuckets.list(bucket, prefix, env);
   
   if (keys.length > 0) {
-    // Retrieve from SmartBuckets
+    // Retrieve from SmartBuckets - use limit if provided, otherwise get all (for risk scoring we want all logs)
+    const maxLogs = limit || keys.length; // Default to all logs for accurate risk scoring
     const logEntries = [];
-    for (const key of keys.slice(-100)) { // Last 100 logs
+    const keysToFetch = keys.slice(-maxLogs); // Get most recent logs up to limit
+    for (const key of keysToFetch) {
       const entry = await smartBuckets.get(bucket, key, env);
       if (entry) {
         logEntries.push(entry);
       }
     }
+    console.log(`[getLogs] Retrieved ${logEntries.length} logs from SmartBuckets (requested up to ${maxLogs} from ${keys.length} total keys)`);
     return logEntries.sort((a, b) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
   }
   
   // Fallback to in-memory storage
-  return logs.get(projectId) || [];
+  const memoryLogs = logs.get(projectId) || [];
+  console.log(`[getLogs] Using in-memory fallback, found ${memoryLogs.length} logs`);
+  return memoryLogs;
 }
 
 async function requireAuth(req: IncomingMessage, res: ServerResponse): Promise<string | null> {

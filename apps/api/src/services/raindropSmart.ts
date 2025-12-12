@@ -398,44 +398,73 @@ export const smartBuckets = {
 
   /**
    * List keys in a bucket with prefix
+   * Handles pagination to retrieve all keys (Raindrop may limit to 250 per page)
    */
-  async list(bucket: string, prefix: string = '', env?: any): Promise<string[]> {
+  async list(bucket: string, prefix: string = '', env?: any, limit?: number): Promise<string[]> {
+    const allKeys: string[] = [];
+    let cursor: string | undefined = undefined;
+    let hasMore = true;
+    const maxIterations = 100; // Safety limit to prevent infinite loops
+    let iteration = 0;
+
     // Try native Raindrop API first
     const bucketInstance = this._getBucket(bucket, env);
     if (bucketInstance) {
       try {
-        let result = null;
+        while (hasMore && iteration < maxIterations) {
+          iteration++;
+          let result = null;
+          
+          // Method 1: list({ prefix, cursor, limit })
+          if (typeof bucketInstance.list === 'function') {
+            const listOptions: any = { prefix };
+            if (cursor) listOptions.cursor = cursor;
+            if (limit) listOptions.limit = limit;
+            result = await bucketInstance.list(listOptions);
+          }
+          // Method 2: list(prefix) or keys(prefix)
+          else if (typeof bucketInstance.keys === 'function') {
+            result = await bucketInstance.keys({ prefix, cursor, limit });
+          }
+          
+          if (result) {
+            let pageKeys: string[] = [];
+            
+            // Raindrop SmartBucket.list() returns {objects: [{key: ...}, ...], delimitedPrefixes: [...], cursor: ..., ...}
+            // Extract keys from objects array
+            if (result.objects && Array.isArray(result.objects)) {
+              pageKeys = result.objects.map((obj: any) => obj.key).filter((key: string) => key);
+            }
+            // Fallback: check if result has keys property
+            else if (result.keys && Array.isArray(result.keys)) {
+              pageKeys = result.keys;
+            }
+            // Fallback: if result is an array, return it
+            else if (Array.isArray(result)) {
+              pageKeys = result;
+            }
+            
+            allKeys.push(...pageKeys);
+            
+            // Check for pagination cursor
+            if (result.cursor && pageKeys.length > 0) {
+              cursor = result.cursor;
+              hasMore = true;
+            } else {
+              hasMore = false;
+            }
+            
+            // If we got fewer keys than expected, we've reached the end
+            if (pageKeys.length === 0 || (limit && pageKeys.length < limit)) {
+              hasMore = false;
+            }
+          } else {
+            hasMore = false;
+          }
+        }
         
-        // Method 1: list({ prefix })
-        if (typeof bucketInstance.list === 'function') {
-          result = await bucketInstance.list({ prefix });
-        }
-        // Method 2: list(prefix) or keys(prefix)
-        else if (typeof bucketInstance.keys === 'function') {
-          result = await bucketInstance.keys({ prefix });
-        }
-        
-        if (result) {
-          // Raindrop SmartBucket.list() returns {objects: [{key: ...}, ...], delimitedPrefixes: [...], ...}
-          // Extract keys from objects array
-          if (result.objects && Array.isArray(result.objects)) {
-            const keys = result.objects.map((obj: any) => obj.key).filter((key: string) => key);
-            console.log(`[SmartBuckets] Extracted ${keys.length} keys from list result for ${bucket} with prefix ${prefix}`);
-            return keys;
-          }
-          // Fallback: check if result has keys property
-          if (result.keys && Array.isArray(result.keys)) {
-            return result.keys;
-          }
-          // Fallback: if result is an array, return it
-          if (Array.isArray(result)) {
-            return result;
-          }
-          // Last resort: return empty array
-          console.warn(`[SmartBuckets] Unexpected list result format for ${bucket}:`, JSON.stringify(result).substring(0, 200));
-          return [];
-        }
-        return [];
+        console.log(`[SmartBuckets] Retrieved ${allKeys.length} total keys from ${bucket} with prefix ${prefix} (${iteration} iterations)`);
+        return allKeys;
       } catch (error: any) {
         console.warn(`[SmartBuckets] Native list failed for ${bucket}:`, error.message);
         console.warn(`[SmartBuckets] Bucket instance methods:`, Object.keys(bucketInstance || {}));
@@ -449,6 +478,7 @@ export const smartBuckets = {
         arguments: {
           bucket,
           prefix,
+          limit,
         },
       }, env);
       return result?.keys || [];
