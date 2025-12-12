@@ -52,9 +52,7 @@ export async function getLogs(projectId: string, env?: any, limit?: number): Pro
     // Retrieve from SmartBuckets - get most recent logs
     const logEntries: any[] = [];
     const keysToFetch = keys.slice(-maxLogsForScoring); // Get most recent logs
-    console.log(`[getLogs] Fetching ${keysToFetch.length} log entries from SmartBuckets...`);
-    
-    // Batch fetch with progress logging for large sets
+    // Batch fetch for large sets
     const batchSize = 50;
     for (let i = 0; i < keysToFetch.length; i += batchSize) {
       const batch = keysToFetch.slice(i, i + batchSize);
@@ -65,12 +63,7 @@ export async function getLogs(projectId: string, env?: any, limit?: number): Pro
           logEntries.push(entry);
         }
       });
-      if (i % 200 === 0 && i > 0) {
-        console.log(`[getLogs] Progress: ${i}/${keysToFetch.length} logs fetched...`);
-      }
     }
-    
-    console.log(`[getLogs] Retrieved ${logEntries.length} logs from SmartBuckets (from ${keys.length} total keys)`);
     return logEntries.sort((a: any, b: any) => 
       new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
     );
@@ -78,7 +71,6 @@ export async function getLogs(projectId: string, env?: any, limit?: number): Pro
   
   // Fallback to in-memory storage
   const memoryLogs = logs.get(projectId) || [];
-  console.log(`[getLogs] Using in-memory fallback, found ${memoryLogs.length} logs`);
   return memoryLogs;
 }
 
@@ -145,7 +137,6 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
               logEntries.push(parts[i] + parts[i + 1]);
             }
           }
-          console.log(`[Ingest] Split concatenated logs into ${logEntries.length} entries`);
         }
       }
     }
@@ -166,12 +157,8 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
 
     // Store logs (tries SmartBuckets, falls back to memory)
     await storeLogs(projectId, storedLogs);
-    console.log(`[Ingest] ✅ Stored ${storedLogs.length} logs successfully`);
-
     // Get all logs for risk scoring
-    console.log('[Ingest] 🔍 Getting all logs for risk scoring...');
     let projectLogs = await getLogs(projectId);
-    console.log(`[Ingest] 📊 Retrieved ${projectLogs.length} logs from storage`);
 
     // Fallback: If DB retrieval is empty (eventual consistency) but we just ingested logs,
     // use the ingested logs for scoring to ensure we don't return a 0 score.
@@ -222,13 +209,10 @@ export async function handleIngestLogs(req: IncomingMessage, res: ServerResponse
       }, 201);
       return;
     } catch (error) {
-      console.error('[Ingest] ❌ Error calculating risk score:', error);
-      console.error('[Ingest] ❌ Error stack:', error instanceof Error ? error.stack : 'No stack trace');
-      console.error('[Ingest] ❌ Error message:', error instanceof Error ? error.message : String(error));
+      console.error('[Ingest] Error calculating risk score:', error);
       // Don't fail the ingestion if risk calculation fails
     }
 
-    console.log('[Ingest] ⚠️ Returning response WITHOUT risk score (fallback path)');
     sendSuccess(res, {
       message: `Ingested ${storedLogs.length} log entries`,
       count: storedLogs.length,
@@ -358,7 +342,6 @@ export async function getRiskHistory(projectId: string, limit = 50, env?: any) {
       env
     );
     
-    console.log(`[getRiskHistory] Found ${rows.length} entries for project ${projectId}`);
     
     if (rows.length > 0) {
       const mapped = rows.map(row => ({
@@ -385,7 +368,6 @@ export async function getRiskHistory(projectId: string, limit = 50, env?: any) {
         if (entry) entries.push(entry);
       }
       if (entries.length > 0) {
-        console.log(`[getRiskHistory] Using SmartBuckets fallback, found ${entries.length} entries`);
         return entries;
       }
     }

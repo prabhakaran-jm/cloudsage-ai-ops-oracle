@@ -97,24 +97,16 @@ export default function ProjectDetailPage() {
   const loadProject = async () => {
     try {
       setLoading(true);
-      console.log('[ProjectDetail] Loading project:', projectId);
       const data = await apiClient.getProject(projectId) as { project: Project; riskScore?: RiskScore };
-      console.log('[ProjectDetail] Received data:', data);
-      console.log('[ProjectDetail] Risk score from API:', data.riskScore);
       setProject(data.project);
       setName(data.project.name);
       setDescription(data.project.description || '');
       if (data.riskScore) {
         // Only update if this risk score is newer than the current one (prevent race condition)
         if (!riskScoreTimestamp || new Date(data.riskScore.timestamp) >= new Date(riskScoreTimestamp)) {
-          console.log('[ProjectDetail] Setting risk score from project load:', data.riskScore);
           setRiskScore(data.riskScore);
           setRiskScoreTimestamp(data.riskScore.timestamp);
-        } else {
-          console.log('[ProjectDetail] Ignoring stale risk score from project load. Current:', riskScoreTimestamp, 'Received:', data.riskScore.timestamp);
         }
-      } else {
-        console.log('[ProjectDetail] No risk score in response');
       }
     } catch (err: any) {
       console.error('[ProjectDetail] Error loading project:', err);
@@ -157,10 +149,7 @@ export default function ProjectDetailPage() {
   };
 
   const handleRefresh = async (newRiskScore?: RiskScore) => {
-    console.log('[ProjectDetail] Refresh triggered after log ingestion');
-
     if (newRiskScore) {
-      console.log('[ProjectDetail] Using immediate risk score from ingestion response:', newRiskScore);
       setRiskScore(newRiskScore);
       setRiskScoreTimestamp(newRiskScore.timestamp);
       // Optimistically append to history, but then refresh from API to avoid races
@@ -261,7 +250,6 @@ export default function ProjectDetailPage() {
     try {
       setLoading(true);
       const result = await apiClient.ingestLogs(projectId, SAMPLE_LOGS);
-      console.log('[ProjectDetail] Sample logs ingested:', result);
       if (result.riskScore) {
         await handleRefresh(result.riskScore);
       } else {

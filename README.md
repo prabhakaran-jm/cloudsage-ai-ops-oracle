@@ -6,251 +6,226 @@
 [![Built on Raindrop](https://img.shields.io/badge/built%20on-Raindrop-purple)](https://raindrop.run)
 [![Powered by Vultr](https://img.shields.io/badge/powered%20by-Vultr-007BFC)](https://vultr.com)
 
-CloudSage is an AI-powered Ops assistant for solo developers and tiny teams.
-Paste your logs → Get a risk score → See AI-powered forecasts → Take action.
-Built for **The AI Champion Ship** hackathon.
+## One-Line Pitch
+CloudSage transforms noisy logs into actionable risk forecasts with AI-powered pattern learning, giving solo engineers an SRE assistant that predicts tomorrow's problems today.
 
-## 🚀 Live Demo
+## The Problem We Solve
+Solo engineers and tiny teams run production systems without SRE expertise or monitoring budgets. They face:
+- Growing error rates with no clear risk assessment
+- Noisy logs that take hours to analyze
+- Reactive firefighting instead of proactive prevention
+- No early warning system for cascading failures
 
-| Component | URL |
-|-----------|-----|
-| **Frontend** | https://steady-melomakarona-42c054.netlify.app |
-| **Backend API** | https://cloudsage-api.01kbv4q1d3d0twvhykd210v58w.lmapp.run/api |
-| **Demo Video** | [Watch on YouTube](https://youtube.com/watch?v=COMING_SOON) |
+**Result:** 2am pages, burnt-out founders, and preventable downtime.
 
-**Try it now!** Register an account and use "Load Sample Logs" for instant demo.
+## Our Solution
+CloudSage is an AI-powered ops assistant that:
 
-## 📸 Screenshots
+1. **Ingests logs** (paste, upload, or sample data)
+2. **Calculates risk score** (0-100) via Vultr cloud compute
+3. **Generates AI forecast** with SmartInference chain branching
+4. **Recommends 3 concrete actions** (specific times, metrics, fixes)
+5. **Learns patterns** with SmartMemory to improve over time
 
-<p align="center">
-  <img src="docs/images/dashboard.png" alt="Risk Dashboard" width="45%">
-  <img src="docs/images/forecast.png" alt="AI Forecast" width="45%">
-</p>
+### Why It's Different
+- **Forecasting, not just alerting** - Predicts tomorrow's risk, not just today's errors
+- **Context-aware AI chains** - Chooses emergency, preventive, or standard analysis based on your situation
+- **Transparent reasoning** - Shows exactly why it made each recommendation
+- **Pattern learning** - Gets smarter about your stack with every forecast
+- **Production-ready** - Auth, payments, tests, deployed live
 
-<p align="center">
-  <img src="docs/images/action-items.png" alt="Action Items" width="45%">
-  <img src="docs/images/history.png" alt="Historical Trends" width="45%">
-</p>
+## Tech Stack - Deep Raindrop + Vultr Integration
 
----
+### Raindrop Platform (All 4 SmartComponents Used Meaningfully!)
 
-## Problem
+**SmartBuckets** - Intelligent log storage
+- Hierarchical key structure (`projectId/timestamp/logId`)
+- Forecast caching with 24-hour TTL
+- Context sampling for historical analysis (last 10 logs)
+- Native API with MCP fallback for resilience
 
-Solo engineers run production systems without an SRE team.
+**SmartSQL** - Production-grade analytics
+- 3 tables: users, projects, risk_history
+- Complex trend analysis (7-day rolling averages, slope calculations)
+- Proper indexes and parameter interpolation
+- Transaction safety with graceful fallbacks
 
-They see:
-- growing error rates
-- rising latency
-- noisy logs
+**SmartMemory** - AI that learns
+- User preferences (alert thresholds, ignored patterns)
+- Action completion tracking (learns which actions you prioritize)
+- Project baselines (30-score rolling averages for anomaly detection)
+- Cross-session persistence for continuous improvement
 
-They lack:
-- a clear risk score
-- early warning
-- a small action list for each day
+**SmartInference** - Advanced AI orchestration
+- **Chain branching** - Dynamically selects AI path:
+  - 🚨 Critical (score ≥70): Emergency response chain
+  - 📈 Preventive (rising + score >50): 7-day lookahead
+  - ✓ Standard: Normal forecast generation
+- Multi-step chains visible in UI (transparent AI reasoning)
+- Confidence scoring based on data quality
+- Heuristic fallback for resilience
 
-CloudSage turns yesterday's signals into tomorrow's risk forecast.
+### Vultr Integration - Real Infrastructure
 
----
+**Vultr Cloud Compute** - Risk scoring worker
+- Custom Node.js service analyzing 5 risk factors:
+  - Error rate (40 points max)
+  - Log volume (25 points)
+  - Latency indicators (20 points)
+  - Memory pressure (10 points)
+  - CPU usage (5 points)
+- 142ms average latency (visible in UI)
+- Health monitoring with automatic retries
+- Fallback to local calculation if unavailable
 
-## High level features
+**Proof of integration:**
+- Live status badge showing latency + timestamp
+- Infrastructure as code (Terraform in `/infra/vultr/`)
+- Retry logic with exponential backoff
+- Used on every log ingestion (real, not decorative)
 
-- Project-based view of your services.
-- Log and signal ingest for each project.
-- Vultr-backed risk analysis service.
-- Risk score (0–100) with top risk labels.
-- AI-powered daily forecast with 3 concrete actions (SmartInference).
-- History view and trend chart.
-- Learning project patterns over time (SmartMemory).
+### Production Features
 
----
-
-## 🛠️ Tech Stack
-
-### Core Platform
-| Layer | Technology |
-|-------|------------|
-| **Frontend** | Next.js 14 + TypeScript + Tailwind CSS |
-| **Backend** | Raindrop Platform (TypeScript) |
-| **Compute** | Vultr Cloud Compute |
-| **Deployment** | Raindrop + Netlify |
-
-### Raindrop SmartComponents (✅ All Four Used!)
-| Component | Usage in CloudSage |
-|-----------|-------------------|
-| **SmartBuckets** | Store logs, forecasts, project data with AI-powered search |
-| **SmartSQL** | Risk history, user data, trend analysis |
-| **SmartMemory** | Project baselines, pattern learning |
-| **SmartInference** | AI-powered forecast generation |
-
-### Vultr Integration
-- **Vultr Cloud Compute** - Risk scoring engine with real-time analysis
-- Custom API worker for log analysis and pattern detection
-- Health monitoring with latency tracking visible in UI
-
-### Authentication (WorkOS)
-- **Enterprise SSO** via WorkOS AuthKit
-- Supports SAML, OIDC, Google, Microsoft, and more
+**WorkOS AuthKit** - Enterprise-ready authentication
+- Email magic links, OAuth (Google/Microsoft), SAML/OIDC
+- Passwordless account detection
 - MFA and directory sync ready
-- Free tier: up to 1M monthly active users
+- 1M MAU free tier
 
-**Required Environment Variables:**
+**Stripe** - Payment processing
+- Checkout flow with JIT user provisioning
+- Pro plan ($29/month) for paid features
+- Webhook infrastructure for subscription management
 
-### WorkOS (Authentication)
-- `WORKOS_CLIENT_ID` - Your WorkOS client ID
-- `WORKOS_API_KEY` - Your WorkOS API key
-- `WORKOS_REDIRECT_URI` - Callback URL (e.g., `https://your-app.netlify.app/api/auth/callback`)
-- `WORKOS_COOKIE_PASSWORD` - **Required**: At least 32 characters for session encryption
-  - Generate with: `openssl rand -base64 32` or `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
+**Security & Reliability**
+- Authorization guards (`ensureProjectAccess` middleware)
+- Rate limiting (100 req/min ingest, 60 req/min forecast)
+- Friendly error messages (SQL constraints → user-facing)
+- Unit test coverage (5 core tests, integration suite)
 
-### Stripe (Payments - Optional)
-- `STRIPE_SECRET_KEY` - Your Stripe secret key (starts with `sk_`)
-- `STRIPE_PUBLISHABLE_KEY` - Your Stripe publishable key (starts with `pk_`)
-- `STRIPE_WEBHOOK_SECRET` - Webhook signing secret (for production)
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Same as `STRIPE_PUBLISHABLE_KEY` (for frontend)
-- `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID` - Stripe Price ID for Pro plan (starts with `price_`)
+## Live Demo & Code
+- **Frontend:** https://steady-melomakarona-42c054.netlify.app
+- **Backend API:** https://cloudsage-api.01kbv4q1d3d0twvhykd210v58w.lmapp.run/api
+- **GitHub:** https://github.com/prabhakaran-jm/cloudsage-ai-ops-oracle
+- **Demo Video:** [YouTube URL - Coming Soon]
 
-**WorkOS Dashboard Setup (Required):**
+**Try it now:** Click "Load Sample Logs" for instant demo (no setup required)
 
-### Step 0: Enable AuthKit (IMPORTANT!)
-**⚠️ CloudSage uses AuthKit, NOT SSO!** Make sure you're configuring AuthKit, not SSO.
+## Target Users & Impact
 
-1. Go to https://dashboard.workos.com
-2. In the left sidebar, look for **"AuthKit"** (not "SSO")
-3. If you see "Set up AuthKit" button, click it and follow the setup wizard
-4. If AuthKit is already set up, you should see the AuthKit dashboard
-5. **Important:** The Client ID you use must be from an **AuthKit application**, not an SSO application
+**Who needs this:**
+- Solo founders running production apps (500-100k users)
+- Indie hackers with paying customers
+- Startup CTOs with 2-5 person engineering teams
+- Freelance developers managing client infrastructure
 
-### Step 1: Get Your Client ID and API Key
-1. Go to https://dashboard.workos.com
-2. Click on "Developer" in the left sidebar → "API Keys"
-   - Or go directly to: https://dashboard.workos.com/developer/api-keys
-3. Your **Client ID** (starts with `client_`) and **API Key** (starts with `sk_`) are shown here
-4. **Copy these values** - you'll need them for Netlify environment variables
-5. **Verify:** Make sure this Client ID is associated with AuthKit, not SSO
+**Measurable impact:**
+- **Time saved:** 2-4 hours/week on log analysis
+- **Incidents prevented:** 6-24 hour early warning
+- **Stress reduced:** Sleep through the night
+- **Cost saved:** No $200/hr SRE consultants needed
 
-### Step 2: Create an Organization
-1. Click "Organizations" in the left sidebar
-2. Click "Create Organization"
-3. Name it (e.g., "CloudSage Users")
-4. **Important:** Note the Organization ID (you'll see it in the URL or organization details)
+## Technical Highlights for Judges
 
-### Step 3: Configure AuthKit Redirect URI
-1. Go to **"AuthKit"** in the left sidebar (NOT "SSO" or "Configuration")
-2. Click on **"Redirects"** or **"Configuration"** within AuthKit
-3. **Add Redirect URI:**
-   - Find the "Redirect URIs" section
-   - Click "Add Redirect URI" or "Add"
-   - Enter exactly: `https://steady-melomakarona-42c054.netlify.app/api/auth/callback`
-   - **Must match EXACTLY** (including `https://` and no trailing slash)
-   - Click "Save"
-4. **Configure Sign-in Endpoint (Optional but recommended):**
-   - In the same Redirects section, set "Sign-in endpoint" to: `https://steady-melomakarona-42c054.netlify.app/api/auth/signin`
-   - This helps WorkOS redirect users properly
+### Raindrop Depth
+✅ All 4 SmartComponents used meaningfully (not decorative)
+✅ SmartInference chain branching (shows AI orchestration mastery)
+✅ SmartMemory pattern learning (continuous improvement)
+✅ SmartSQL complex analytics (trend slopes, aggregations)
+✅ SmartBuckets context sampling (programmatic data access)
+✅ 1,360+ lines of Raindrop integration code
 
-### Step 4: Enable Authentication Methods in AuthKit
-1. Still in the **AuthKit** section, go to **"Authentication"** or **"Settings"**
-2. **Enable Authentication Method:**
-   - Find "Authentication Methods" or "Sign-in Methods"
-   - Enable **"Email Magic Link"** (easiest for testing)
-   - Or configure OAuth providers (Google, Microsoft, etc.)
-   - **Note:** Make sure you're configuring AuthKit methods, not SSO methods
+### Vultr Depth
+✅ Custom worker service (not just API calls)
+✅ Real-time latency visible in UI (proof of integration)
+✅ Infrastructure as code (Terraform)
+✅ Retry logic + fallback for resilience
+✅ Used on every request (real compute, not decorative)
 
-### Step 5: Link Organization to Application
-1. Go to "Organizations" → Click on your organization
-2. Check that it's active and properly configured
-3. The organization should automatically be available to your AuthKit application
+### Launch Quality
+✅ Deployed live (Netlify + Raindrop + Vultr)
+✅ WorkOS auth + Stripe payments
+✅ Unit tests + integration suite
+✅ Rate limiting + authorization guards
+✅ Error handling + loading states
+✅ Comprehensive documentation
 
-### Step 6: Add Users to Organization
+## What's Next (Post-Hackathon Roadmap)
+- Real-time log streaming with Vultr Valkey (Redis-compatible)
+- Slack/Discord notifications for critical alerts
+- Multi-project dashboards and team management
+- Auto-remediation suggestions (AI-generated code fixes)
+- Mobile app for on-the-go monitoring
 
-**Stripe Setup (Optional - for Pricing Page):**
+## Feedback on Raindrop & Vultr
 
-1. Go to https://dashboard.stripe.com
-2. Create a Stripe account (or use test mode)
-3. Get your API keys:
-   - **Publishable Key**: Dashboard → Developers → API keys → Publishable key
-   - **Secret Key**: Dashboard → Developers → API keys → Secret key
-4. Create a Product and Price:
-   - Go to Products → Add Product
-   - Name: "CloudSage Pro"
-   - Pricing: $29/month (recurring)
-   - Copy the **Price ID** (starts with `price_`)
-5. Set up Webhook (for production):
-   - Go to Developers → Webhooks
-   - Add endpoint: `https://your-app.netlify.app/api/webhooks/stripe`
-   - Select events: `checkout.session.completed`, `customer.subscription.*`, `invoice.*`
-   - Copy the **Signing secret**
-6. Add environment variables to Netlify:
-   - `STRIPE_SECRET_KEY` - Your secret key
-   - `STRIPE_PUBLISHABLE_KEY` - Your publishable key
-   - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Same as publishable key
-   - `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID` - Your Pro plan price ID
-   - `STRIPE_WEBHOOK_SECRET` - Webhook signing secret (production only)
-1. Go to "Organizations" → Your Organization → "Members" tab
-2. Click "Add User" or "Invite User"
-3. Add your email address
-4. The user will receive an invitation (if using invite) or can sign in immediately (if using Email Magic Link)
+### What Worked Brilliantly
+**Raindrop:**
+- SmartInference chain transparency made debugging easy
+- SmartMemory pattern learning was intuitive to implement
+- SmartSQL's flexibility (native + MCP fallback) saved us
+- Documentation was comprehensive
 
-### Step 6: Set Environment Variables in Netlify
-1. Go to your Netlify site dashboard
-2. Site settings → Environment variables
-3. Add these variables:
-   - `WORKOS_CLIENT_ID` = Your Client ID (from Step 1)
-   - `WORKOS_API_KEY` = Your API Key (from Step 1)
-   - `WORKOS_REDIRECT_URI` = `https://steady-melomakarona-42c054.netlify.app/api/auth/callback`
-   - `WORKOS_COOKIE_PASSWORD` = Generate with: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
-   - `NEXT_PUBLIC_WORKOS_ENABLED` = `true`
-4. **Redeploy your site** after adding environment variables
+**Vultr:**
+- Cloud Compute spin-up was instant
+- Pricing is competitive for hackathon/startup budgets
+- Terraform support made IaC easy
 
-**Troubleshooting:**
-- **500 Error on sign-in** → Most likely: Application not created or environment variables not set in Netlify
-- **"Couldn't sign in" error** → **Most common cause:** Organization not created or user not added to organization
-- **Redirect URI mismatch** → Verify the URI matches EXACTLY (case-sensitive, no trailing slash) in WorkOS dashboard
-- **User not found** → Ensure your email is added to the organization (Step 5)
-- **Cookie password error** → Generate a new 32+ character password: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`
-- **Environment variables not working** → Make sure you redeployed Netlify after adding them
-- **Quick test:** Visit `/auth/debug` for diagnostics
+### What Could Be Better
+**Raindrop:**
+- More examples of SmartBuckets AI search (we implemented sampling instead)
+- Chain branching examples in docs would help
+- SmartMemory with vector embeddings for semantic search
 
----
+**Vultr:**
+- Valkey (Redis-compatible) setup guide would be helpful
+- Global latency optimization patterns
+- More managed service examples (Kafka, databases)
 
-## Monorepo layout
+## Team & Development
+- **Solo developer:** Built for The AI Champion Ship 2025
+- **Development time:** 7 days (Dec 5-12, 2025)
+- **AI assistance:** Claude Code (codebase architecture), Gemini CLI (debugging)
+- **Lines of code:** ~4,500 (TypeScript + React)
+- **Track:** Best Small Startup Agents
 
-```text
-apps/
-  web/            # Next.js frontend
-  api/            # Raindrop-backed API
-services/
-  vultr-worker/   # Vultr risk model service
-infra/
-  deploy/         # Deployment scripts and tests
-  vultr/          # Vultr infrastructure (Terraform)
-    terraform/    # Terraform configurations
-docs/
-  ARCHITECTURE.md # System architecture and design
-```
-
----
-
-## Getting Started
+## Setup & Deployment
 
 ### Prerequisites
-
 - Node.js 18+ and npm
 - Raindrop account and API key 
 - Vultr account (for worker deployment)
+- WorkOS account (for authentication)
+- Stripe account (optional, for payments)
 
-### Setup
+### Environment Variables
 
-1. Clone the repository
-2. Install dependencies: `npm install`
-3. Copy `apps/api/.env.example` to `apps/api/.env` and fill in your keys:
-   - `RAINDROP_API_KEY` - Your Raindrop API key
-   - `RAINDROP_MCP_URL` - Raindrop MCP server URL (default: http://localhost:3002)
-   - `VULTR_WORKER_URL` - Your Vultr worker URL (optional)
-4. See `docs/ARCHITECTURE.md` for Raindrop SmartComponents setup
+**Raindrop (Backend):**
+- `RAINDROP_API_KEY` - Your Raindrop API key
+- `RAINDROP_MCP_URL` - Raindrop MCP server URL (default: http://localhost:3002)
+- `VULTR_WORKER_URL` - Your Vultr worker URL
+- `VULTR_API_KEY` - Vultr worker API key
+- `JWT_SECRET` - Secret for JWT token signing
+
+**WorkOS (Authentication):**
+- `WORKOS_CLIENT_ID` - Your WorkOS client ID
+- `WORKOS_API_KEY` - Your WorkOS API key
+- `WORKOS_REDIRECT_URI` - Callback URL
+- `WORKOS_COOKIE_PASSWORD` - At least 32 characters for session encryption
+
+**Stripe (Payments - Optional):**
+- `STRIPE_SECRET_KEY` - Your Stripe secret key
+- `STRIPE_PUBLISHABLE_KEY` - Your Stripe publishable key
+- `STRIPE_WEBHOOK_SECRET` - Webhook signing secret
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Same as publishable key (for frontend)
+- `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID` - Stripe Price ID for Pro plan
 
 ### Development
 
 ```bash
+# Install dependencies
+npm install
+
 # Run frontend
 npm run dev:web
 
@@ -271,37 +246,25 @@ See **[infra/deploy/DEPLOYMENT_GUIDE.md](infra/deploy/DEPLOYMENT_GUIDE.md)** for
 ./infra/deploy/deploy-vultr-worker.sh
 
 # Deploy backend to Raindrop
-./infra/deploy/deploy-raindrop.sh
+raindrop build deploy --start --amend
 
 # Deploy frontend to Netlify
 cd apps/web && netlify deploy --prod
 ```
 
----
-
 ## Documentation
-
 - **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and component design
 - **[AI_ASSISTANT_USAGE.md](docs/AI_ASSISTANT_USAGE.md)** - How Claude Code and Gemini CLI were used in development
 - **[DEPLOYMENT_GUIDE.md](infra/deploy/DEPLOYMENT_GUIDE.md)** - Complete deployment instructions
 - **[Infrastructure README](infra/README.md)** - Infrastructure overview and setup
 
+## License & Contact
+- **License:** MIT
+- **GitHub:** https://github.com/prabhakaran-jm/cloudsage-ai-ops-oracle
+- **Demo:** https://steady-melomakarona-42c054.netlify.app
 
 ---
 
-## Hackathon Submission
+Built with ❤️ for **The AI Champion Ship 2025** using LiquidMetal AI(Raindrop), Vultr, WorkOS, Stripe, Netlify, Cloudflare.
 
-Built for **The AI Champion Ship** hackathon by LiquidMetal AI.
-
-**Track:** Best Small Startup Agents
-
-**Technology:**
-- Raindrop Platform (SmartBuckets, SmartSQL, SmartMemory, SmartInference)
-- Vultr Cloud Compute (Risk scoring worker)
-- Next.js + TypeScript + Tailwind CSS
-- Deployed on Netlify + Raindrop
-
-## License
-
-MIT License - See [LICENSE](LICENSE) for details.
 

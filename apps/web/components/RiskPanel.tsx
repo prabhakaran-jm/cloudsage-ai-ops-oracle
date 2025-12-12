@@ -12,7 +12,6 @@ interface RiskPanelProps {
 
 export default function RiskPanel({ riskScore, loading, updatedAt, onLoadSampleLogs }: RiskPanelProps) {
   useEffect(() => {
-    console.log('[RiskPanel] Risk score prop changed:', riskScore);
   }, [riskScore]);
 
   if (loading) {

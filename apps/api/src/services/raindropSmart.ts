@@ -186,7 +186,6 @@ export const smartBuckets = {
         // Method 1: put(key, value)
         if (typeof bucketInstance.put === 'function') {
           await bucketInstance.put(key, dataStr);
-          console.log(`[SmartBuckets] Successfully stored ${bucket}/${key} using native API`);
           return true;
         }
         
@@ -243,7 +242,6 @@ export const smartBuckets = {
           if (typeof result.text === 'function') {
             try {
               const text = await result.text();
-              console.log(`[SmartBuckets] Read content via .text() for ${bucket}/${key}, length: ${text.length}`);
               try {
                 return JSON.parse(text);
               } catch {
@@ -326,7 +324,6 @@ export const smartBuckets = {
             if (result.customMetadata && result.customMetadata.data) {
               try {
                 const data = JSON.parse(result.customMetadata.data);
-                console.log(`[SmartBuckets] Found data in customMetadata for ${bucket}/${key}`);
                 return data;
               } catch {
                 return result.customMetadata.data;

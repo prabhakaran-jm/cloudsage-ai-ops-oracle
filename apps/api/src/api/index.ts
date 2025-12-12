@@ -313,7 +313,6 @@ export async function ensureProjectAccess(
     
     // If not found, try listing and searching (in case key format differs)
     if (!project) {
-      console.log(`[AuthZ] Direct lookup failed for ${userId}/${projectId}, trying list search...`);
       const keys = await smartBuckets.list('projects', `${userId}/`, c.env);
       for (const key of keys || []) {
         const p = await smartBuckets.get('projects', key, c.env);
@@ -325,7 +324,6 @@ export async function ensureProjectAccess(
     }
     
     if (project && (project.user_id === userId || project.userId === userId || !project.user_id)) {
-      console.log(`[AuthZ] Project access granted via bucket lookup for ${projectId}`);
       return { ok: true };
     }
   } catch (err) {
@@ -398,7 +396,6 @@ app.post('/api/auth/register', async (c: Context<{ Bindings: AppEnv }>) => {
     // Normalize email
     email = email.toLowerCase().trim();
 
-    console.log('[Auth] Registration attempt for email:', email);
 
     // Check SmartSQL first
     try {
@@ -450,7 +447,6 @@ app.post('/api/auth/register', async (c: Context<{ Bindings: AppEnv }>) => {
     } catch (err) {
       console.warn('[Auth] SmartSQL insert failed, storing in SmartBuckets fallback:', err);
     await smartBuckets.put('users', email, userData, c.env);
-    console.log('[Auth] User created in SmartBuckets:', email);
     }
 
     const token = await signToken(userId, c.env);
@@ -477,7 +473,6 @@ app.post('/api/auth/login', async (c: Context<{ Bindings: AppEnv }>) => {
     // Normalize email
     email = email.toLowerCase().trim();
 
-    console.log('[Auth] Login attempt for email:', email);
 
     // Try SmartSQL first
     let user = null;
@@ -501,22 +496,15 @@ app.post('/api/auth/login', async (c: Context<{ Bindings: AppEnv }>) => {
     }
 
     if (!user) {
-      console.log('[Auth] User not found:', email);
       return c.json({ error: 'Invalid credentials' }, 401);
     }
 
-    console.log('[Auth] User found:', JSON.stringify({ ...user, password_hash: '[REDACTED]' }));
-    console.log('[Auth] User object keys:', Object.keys(user));
-    
     // Handle different data formats from SmartBuckets
     const actualUser = user.value || user.data || user;
     const userPassword = actualUser.password_hash || actualUser.password || user.password_hash || user.password;
     
-    console.log('[Auth] Comparing passwords - stored length:', userPassword?.length);
-    
     // Check if user has no password (passwordless account from Stripe/WorkOS)
     if (!userPassword || userPassword === '') {
-      console.log('[Auth] User has no password (passwordless account):', email);
       return c.json({ 
         error: 'This account uses passwordless authentication',
         code: 'PASSWORDLESS_ACCOUNT',
@@ -527,7 +515,6 @@ app.post('/api/auth/login', async (c: Context<{ Bindings: AppEnv }>) => {
     const passwordOk = await verifyPassword(userPassword, password);
 
     if (!passwordOk) {
-      console.log('[Auth] Password mismatch for:', email);
       return c.json({ error: 'Invalid credentials' }, 401);
     }
     
@@ -537,7 +524,6 @@ app.post('/api/auth/login', async (c: Context<{ Bindings: AppEnv }>) => {
 
     const token = await signToken(userIdForToken, c.env);
 
-    console.log('[Auth] Login successful for:', email);
     return c.json({
       token,
       user: { id: userIdForToken, email: userEmailForResponse },
@@ -587,9 +573,6 @@ app.post('/api/auth/stripe-login', async (c: Context<{ Bindings: AppEnv }>) => {
         const bucketUser = await smartBuckets.get('users', normalizedEmail, c.env);
         if (bucketUser) {
           user = bucketUser.value || bucketUser.data || bucketUser;
-          console.log('[Auth] User found in SmartBuckets:', normalizedEmail, 'raw user:', JSON.stringify(user));
-        } else {
-          console.log('[Auth] No user found in SmartBuckets for:', normalizedEmail);
         }
       } catch (err) {
         console.warn('[Auth] SmartBuckets query failed:', err);
@@ -653,17 +636,11 @@ app.post('/api/auth/stripe-login', async (c: Context<{ Bindings: AppEnv }>) => {
       } catch (err) {
         console.warn('[Auth] SmartSQL insert failed, storing in SmartBuckets:', err);
         await smartBuckets.put('users', normalizedEmail, userData, c.env);
-        console.log('[Auth] Stripe checkout user created in SmartBuckets:', normalizedEmail);
       }
     }
 
     const token = await signToken(userId, c.env);
 
-    console.log('[Auth] Stripe checkout login successful:', {
-      email: normalizedEmail,
-      userId: userId,
-      tokenUserId: (await getUserIdFromToken(`Bearer ${token}`, c.env)) || 'VERIFICATION_FAILED',
-    });
     return c.json({
       token,
       user: { id: userId, email: normalizedEmail },
@@ -709,9 +686,6 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
         const bucketUser = await smartBuckets.get('users', normalizedEmail, c.env);
         if (bucketUser) {
           user = bucketUser.value || bucketUser.data || bucketUser;
-          console.log('[Auth] User found in SmartBuckets:', normalizedEmail, 'raw user:', JSON.stringify(user));
-        } else {
-          console.log('[Auth] No user found in SmartBuckets for:', normalizedEmail);
         }
       } catch (err) {
         console.warn('[Auth] SmartBuckets query failed:', err);
@@ -772,7 +746,6 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
           [userId, normalizedEmail, passwordHash, now, now],
           c.env
         );
-        console.log('[Auth] WorkOS user created in SmartSQL:', normalizedEmail);
       } catch (err) {
         console.warn('[Auth] SmartSQL insert failed, storing in SmartBuckets:', err);
         await smartBuckets.put('users', normalizedEmail, userData, c.env);
@@ -782,12 +755,6 @@ app.post('/api/auth/workos-login', async (c: Context<{ Bindings: AppEnv }>) => {
 
     const token = await signToken(userId, c.env);
 
-    console.log('[Auth] WorkOS login successful:', {
-      email: normalizedEmail,
-      workosUserId: workosUserId || 'N/A',
-      userId: userId,
-      tokenUserId: (await getUserIdFromToken(`Bearer ${token}`, c.env)) || 'VERIFICATION_FAILED',
-    });
     return c.json({
       token,
       user: { id: userId, email: normalizedEmail },
@@ -902,17 +869,6 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
     }
 
     if (!project) {
-      console.log('[Projects] Project not found. Searched for key:', `${userId}/${projectId}`);
-      console.log('[Projects] UserId from token:', userId);
-      console.log('[Projects] ProjectId from URL:', projectId);
-      
-      // Try listing all projects for this user to see what keys exist
-      try {
-        const allKeys = await smartBuckets.list('projects', `${userId}/`, c.env);
-        console.log('[Projects] Available project keys for user:', allKeys);
-      } catch (e) {
-        console.warn('[Projects] Failed to list projects:', e);
-      }
       
       return c.json({ error: 'Project not found' }, 404);
     }
@@ -921,7 +877,6 @@ app.get('/api/projects/:projectId', async (c: Context<{ Bindings: AppEnv }>) => 
       return c.json({ error: 'Forbidden' }, 403);
     }
 
-    console.log('[Projects] Project found:', projectId);
 
     // Try to reuse latest stored risk score before recalculating
     let riskScore: any = null;
@@ -1061,7 +1016,6 @@ app.post('/api/projects', async (c: Context<{ Bindings: AppEnv }>) => {
         [projectId, userId, name, description || '', now, now],
         c.env
       );
-      console.log('[Projects] Project created in SmartSQL');
 
       // Also store in Buckets for resilience
       try {
@@ -1290,12 +1244,9 @@ app.post('/api/ingest/:projectId', rateLimit(100, 60_000), async (c: Context<{ B
       };
     });
 
-    console.log(`[Ingest] ↘️ Received ${storedLogs.length} entries for ${projectId}`);
     await ingestRoutes.storeLogs(projectId, storedLogs, c.env);
-    console.log(`[Ingest] ✅ Stored ${storedLogs.length} logs successfully`);
 
     // Get logs for risk scoring (limit to last 1000 for performance, still accurate)
-    console.log('[Ingest] 🔍 Getting logs for risk scoring...');
     const startTime = Date.now();
     // Limit to last 1000 logs for performance (still accurate for risk scoring)
     let projectLogs = await ingestRoutes.getLogs(projectId, c.env, 1000);
@@ -1312,7 +1263,6 @@ app.post('/api/ingest/:projectId', rateLimit(100, 60_000), async (c: Context<{ B
     }));
 
     let riskScore = null;
-    console.log(`[Ingest] 🧮 Calculating risk score for ${projectLogsForScoring.length} logs`);
     try {
       const { calculateRiskScoreFromVultr } = await import('../services/vultrClient');
       const { getProjectRiskScore } = await import('../services/riskLogic');
@@ -1329,14 +1279,8 @@ app.post('/api/ingest/:projectId', rateLimit(100, 60_000), async (c: Context<{ B
         console.warn('Vultr worker unavailable, using local calculation:', error);
         riskScore = getProjectRiskScore(projectLogsForScoring);
         const riskScoreDuration = Date.now() - riskScoreStartTime;
-        console.log(`[Ingest] ⚡ Local risk scoring completed in ${riskScoreDuration}ms`);
       }
-      const totalDuration = Date.now() - startTime;
-      console.log(`[Ingest] ⏱️ Total ingestion + risk scoring time: ${totalDuration}ms`);
-      
-      console.log('[Ingest] 💾 Storing risk score...');
       await ingestRoutes.storeRiskScore(projectId, riskScore, c.env);
-      console.log('[Ingest] ✅ Risk score stored');
     } catch (error) {
       console.error('Error calculating risk score:', error);
     }
@@ -1580,9 +1524,7 @@ app.get('/api/forecast/:projectId/risk-history', async (c: Context<{ Bindings: A
     }
     const { limit = 30 } = parsedQuery.data;
     const { getRiskHistory } = await import('../routes/ingest');
-    console.log(`[RiskHistory] Fetching history for project ${projectId}, limit: ${limit}`);
     let history = await getRiskHistory(projectId, limit, c.env);
-    console.log(`[RiskHistory] Retrieved ${history?.length || 0} history entries`);
 
     // If still empty, try to include the latest cached risk score
     if (!history || history.length === 0) {
@@ -1645,7 +1587,6 @@ async function initDatabase(db: any): Promise<boolean> {
       });
       // Note: password_hash is NOT NULL, but we use empty string '' for passwordless users (Stripe/WorkOS)
     } catch (e) {
-      console.log('[CloudSage] Users table already exists or error:', e);
     }
 
     try {
@@ -1682,7 +1623,6 @@ async function initDatabase(db: any): Promise<boolean> {
         format: 'json'
       });
     } catch (e) {
-      console.log('[CloudSage] Risk_history table already exists or error:', e);
     }
 
     console.log('[CloudSage] ✓ Database initialization complete');
@@ -1717,10 +1657,8 @@ export default class extends Service<Env> {
         }
       }
 
-      console.log('[Service] Calling app.fetch with actualEnv:', !!actualEnv);
       // Pass context directly to Hono
       const response = await app.fetch(request, actualEnv, ctx);
-      console.log('[Service] app.fetch returned, status:', response.status);
       return response;
     } catch (error) {
       console.error('[CloudSage] Service fetch error:', error);
