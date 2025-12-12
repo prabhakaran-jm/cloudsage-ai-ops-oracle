@@ -415,9 +415,11 @@ export default function ProjectDetailPage() {
                   {vultrStatus.status === 'online' ? 'Risk Engine Online' : 
                    vultrStatus.status === 'checking' ? 'Connecting...' : 'Offline (using fallback)'}
                 </span>
-                {vultrStatus.latency && (
+                {riskScore?.latencyMs ? (
+                  <span className="text-white/40 text-xs">({riskScore.latencyMs}ms)</span>
+                ) : vultrStatus.latency ? (
                   <span className="text-white/40 text-xs">({vultrStatus.latency})</span>
-                )}
+                ) : null}
               </div>
 
               {riskScoreTimestamp && (
@@ -455,15 +457,20 @@ export default function ProjectDetailPage() {
               <div className="grid grid-cols-2 gap-3 text-xs text-white/80">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                  <span>Latency:</span>
+                  <span>Health check:</span>
                   <span className="font-semibold">{vultrStatus.latency || '—'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+                  <span>Risk scoring:</span>
+                  <span className="font-semibold">{riskScore?.latencyMs ? `${riskScore.latencyMs}ms` : '—'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                   <span>Last risk calc:</span>
                   <span className="font-semibold">{riskScoreTimestamp ? new Date(riskScoreTimestamp).toLocaleTimeString() : '—'}</span>
                 </div>
-                <div className="flex items-center gap-2 col-span-2 text-white/60">
+                <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
                   <span>Last checked:</span>
                   <span className="font-semibold">{vultrStatus.checkedAt ? new Date(vultrStatus.checkedAt).toLocaleTimeString() : '—'}</span>

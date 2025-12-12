@@ -237,6 +237,7 @@ export interface RiskScore {
     logVolume?: number;
     latency?: number;
   };
+  latencyMs?: number; // Latency of the risk scoring call itself
 }
 
 export interface Project {

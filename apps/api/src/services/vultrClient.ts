@@ -38,6 +38,7 @@ export interface RiskScoreResult {
     memoryPressure?: number;
     cpuUsage?: number;
   };
+  latencyMs?: number; // Latency of the risk scoring call itself
 }
 
 export interface ScoreRequest {
@@ -58,6 +59,7 @@ export async function calculateRiskScoreFromVultr(
   env?: any
 ): Promise<RiskScoreResult> {
   const { workerUrl, apiKey } = getVultrConfig(env);
+  const scoringStartTime = Date.now();
   
   const attempt = async (signal: AbortSignal) => {
     const response = await fetch(`${workerUrl}/score`, {
@@ -77,7 +79,12 @@ export async function calculateRiskScoreFromVultr(
     }
 
     const data: any = await response.json();
-    return data.riskScore;
+    const latencyMs = Date.now() - scoringStartTime;
+    // Include latency in the result
+    return {
+      ...data.riskScore,
+      latencyMs,
+    };
   };
 
   let lastError: any = null;
