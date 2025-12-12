@@ -154,7 +154,7 @@ export async function runForecastInference(
       chainSteps.push('✓ Normal operation - using standard forecast chain');
     }
 
-    const result = await smartInference.run(chainName, chainInputs, env);
+    const result = await smartInference.run(chainName, chainInputs);
     
     if (result && result.forecastText) {
       chainSteps.push('✅ Step 3 complete: SmartInference generated forecast');
