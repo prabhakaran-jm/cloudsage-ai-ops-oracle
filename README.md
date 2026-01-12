@@ -107,7 +107,7 @@ CloudSage is an AI-powered ops assistant that:
 - **Frontend:** https://steady-melomakarona-42c054.netlify.app
 - **Backend API:** https://cloudsage-api.01kbv4q1d3d0twvhykd210v58w.lmapp.run/api
 - **GitHub:** https://github.com/prabhakaran-jm/cloudsage-ai-ops-oracle
-- **Demo Video:** [YouTube URL - Coming Soon]
+- **Demo Video:** https://www.youtube.com/watch?v=L55Yf8C7uY0
 
 **Try it now:** Click "Load Sample Logs" for instant demo (no setup required)
 
